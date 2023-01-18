@@ -1,3 +1,7 @@
+"""
+    Load Slisemap objects and convert them into dataframes.
+"""
+
 from os import PathLike
 from typing import Optional, Sequence, Union
 
@@ -13,7 +17,7 @@ def slisemap_to_dataframe(
     losses: bool = False,
     clusters: int = 0,
 ) -> pd.DataFrame:
-    """Convert a ``Slisemap`` object to a ``pandas.DataFrame``.
+    """Convert a `Slisemap` object to a `pandas.DataFrame`.
 
     Args:
         path: Slisemap object or path to a saved slisemap object.
@@ -23,7 +27,7 @@ def slisemap_to_dataframe(
         clusters: Return cluster indices (if greater than zero). Defaults to zero.
 
     Returns:
-        A dataframe containing the X, Y, Z, B, fidelity, (L) matrices from the Slisemap object.
+        A dataframe containing the X, Y, Z, B, Fidelity, (L, Cluster) matrices from the Slisemap object.
     """
 
     if isinstance(path, Slisemap):

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiplot_slisemap"
+version = "0.1"
+description = "Slisemap plugin for xiplot"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Anton Björklund", email = "anton.bjorklund@helsinki.fi" }]
+keywords = ["xiplot", "slisemap", "plugin", "XAI"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Framework :: Dash",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = ["slisemap", "numpy"]
+
+[project.optional-dependencies]
+xiplot = ["xiplot"]
+dev = ["pytest", "black"]
+
+[project.urls]
+github = "https://github.com/edahelsinki/xiplot_slisemap"
+
+[project.entry-points."xiplot.plugins"]
+load = "xiplot_slisemap:hooks:load"
