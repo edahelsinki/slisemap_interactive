@@ -2,8 +2,10 @@
     Load Slisemap objects and convert them into dataframes.
 """
 
+import gc
 from os import PathLike
 from typing import Optional, Sequence, Union
+import warnings
 
 import pandas as pd
 import numpy as np
@@ -15,7 +17,7 @@ def slisemap_to_dataframe(
     variables: Optional[Sequence[str]] = None,
     targets: Union[str, Sequence[str], None] = None,
     losses: bool = False,
-    clusters: int = 0,
+    clusters: int = 9,
 ) -> pd.DataFrame:
     """Convert a `Slisemap` object to a `pandas.DataFrame`.
 
@@ -24,7 +26,7 @@ def slisemap_to_dataframe(
         variables: List of variables names (columns in X). Defaults to None.
         targets: List of target names (columns in Y). Defaults to None.
         losses: Return the loss matrix. Default to False.
-        clusters: Return cluster indices (if greater than zero). Defaults to zero.
+        clusters: Return cluster indices (if greater than one). Defaults to 9.
 
     Returns:
         A dataframe containing the X, Y, Z, B, Fidelity, (L, Cluster) matrices from the Slisemap object.
@@ -35,57 +37,76 @@ def slisemap_to_dataframe(
     else:
         sm = Slisemap.load(path, "cpu")
 
-    Z = sm.get_Z(rotate=True)
-    X = sm.get_X(intercept=False)
-    Y = sm.get_Y()
-    B = sm.get_B()
-    L = sm.get_L()
-    data = [X, Y, Z, B, L.diagonal()[:, None]]
-    if losses:
-        data.append(L)
-    if clusters:
-        data.append(sm.get_model_clusters(clusters))
-    mat = np.concatenate(data, 1)
+    dfs = []
 
-    # The following mess is just to enable optional variable and target names
-    names = []
+    X = sm.get_X(intercept=False)
     if variables:
         assert len(variables) == X.shape[1]
-        names += [f"X_{i}" for i in variables]
+        Xn = [f"X_{i}" for i in variables]
     else:
-        names += [f"X_{i+1}" for i in range(X.shape[1])]
-    if targets:
-        if isinstance(targets, str):
-            assert Y.shape[1] == 1
+        Xn = [f"X_{i+1}" for i in range(X.shape[1])]
+    dfs.append(pd.DataFrame.from_records(X, columns=Xn))
+    del X
+
+    Y = sm.get_Y()
+    if targets is None and Y.shape[1] == 1:
+        Yn = ["Y"]
+    elif targets is None:
+        Yn = [f"Y_{i+1}" for i in range(Y.shape[1])]
+    else:
+        if not isinstance(targets, str):
             targets = [targets]
-        assert len(targets) == Y.shape[1]
-        names += [f"Y_{i}" for i in targets]
-    elif Y.shape[1] == 1:
-        names.append("Y")
-    else:
-        names += [f"Y_{i+1}" for i in range(Y.shape[1])]
-    names += [f"Z_{i+1}" for i in range(Z.shape[1])]
+        Yn = [f"Y_{i}" for i in targets]
+    dfs.append(pd.DataFrame.from_records(Y, columns=Yn))
+    del Y
+
+    Z = sm.get_Z(rotate=True)
+    Zn = [f"Z_{i+1}" for i in range(Z.shape[1])]
+    dfs.append(pd.DataFrame.from_records(Z, columns=Zn))
+    del Z
+
+    B = sm.get_B()
     if variables:
         if sm.intercept:
             variables = variables + ["B_Intercept"]
         if B.shape[1] == len(variables):
-            names += [f"B_{i}" for i in variables]
+            Bn = [f"B_{i}" for i in variables]
         elif B.shape[1] % len(variables) == 0 and B.shape[1] % len(targets) == 0:
             variables = [f"{t}:{v}" for t in targets for v in variables]
-            names += [f"B_{i}" for i in variables[: B.shape[1]]]
+            Bn = [f"B_{i}" for i in variables[: B.shape[1]]]
         else:
-            names += [f"B_{i+1}" for i in range(X.shape[1])]
+            Bn = [f"B_{i+1}" for i in range(X.shape[1])]
     else:
         if sm.intercept:
-            names += [f"B_{i+1}" for i in range(B.shape[1] - 1)] + ["B_Intercept"]
+            Bn = [f"B_{i+1}" for i in range(B.shape[1] - 1)] + ["B_Intercept"]
         else:
-            names += [f"B_{i+1}" for i in range(B.shape[1])]
-    names.append("Fidelity")
+            Bn = [f"B_{i+1}" for i in range(B.shape[1])]
+    dfs.append(pd.DataFrame.from_records(B, columns=Bn))
+    del B
+
+    L = sm.get_L()
+    dfs.append(pd.DataFrame({"Fidelity": L.diagonal()}))
     if losses:
-        names += [f"L_{i+1}" for i in range(L.shape[1])]
-    if clusters:
-        names.append("Cluster")
+        Ln = [f"L_{i+1}" for i in range(L.shape[1])]
+        dfs.append(pd.DataFrame.from_records(L, columns=Ln))
+    del L
+
+    if clusters > 1:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            clusters = {
+                f"Clusters {i}": pd.Series(
+                    sm.get_model_clusters(i)[0], dtype="category"
+                )
+                for i in range(2, clusters + 1)
+            }
+            dfs.append(pd.DataFrame(clusters))
 
     # Then we create a dataframe to return
-    df = pd.DataFrame.from_records(mat, columns=names)
+    del sm
+    gc.collect(1)
+    df = pd.concat(dfs, axis=1)
+    del dfs
+    gc.collect(1)
+    df.sort_values("Z_1", inplace=True)
     return df
