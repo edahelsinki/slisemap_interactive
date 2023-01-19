@@ -166,3 +166,4 @@ poetry.toml
 
 ### Own ###
 .vscode
+*.sm
