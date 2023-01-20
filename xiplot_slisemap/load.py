@@ -108,5 +108,4 @@ def slisemap_to_dataframe(
     df = pd.concat(dfs, axis=1)
     del dfs
     gc.collect(1)
-    df.sort_values("Z_1", inplace=True)
     return df
