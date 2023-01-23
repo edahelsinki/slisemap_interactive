@@ -27,3 +27,6 @@ github = "https://github.com/edahelsinki/xiplot_slisemap"
 
 [project.entry-points."xiplot.plugins"]
 load = "xiplot_slisemap:hooks:load"
+
+[project.scripts]
+slisemap-dash = "xiplot_slisemap:app:cli"

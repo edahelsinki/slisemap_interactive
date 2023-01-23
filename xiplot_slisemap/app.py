@@ -1,6 +1,7 @@
 """
     Simple standalone Dash app.
 """
+import argparse
 import sys
 import os
 from typing import Any, Optional
@@ -20,6 +21,29 @@ def nested_get(obj: Any, *keys) -> Optional[Any]:
             return None
         obj = obj[key]
     return obj
+
+
+def cli():
+    parser = argparse.ArgumentParser(
+        prog="slisemap-dash",
+        description="SLISEMAP - Dash:   A Dash app for interactively visualising SLISEMAP objects",
+    )
+    parser.add_argument(
+        "PATH",
+        help="The path to a Slisemap object (or a directory containing a Slisemap object)",
+    )
+    parser.add_argument("-d", "--debug", action="store_true", help="enable debug mode")
+    parser.add_argument(
+        "--no-debug", action="store_true", help="force disable debug mode"
+    )
+    args = parser.parse_args()
+    path = args.PATH
+    debug = not args.no_debug and args.debug
+    if os.path.isdir(path):
+        for path in [f for f in os.listdir(path) if f.endswith(".sm")]:
+            print("Using:", path)
+            break
+    run_server(slisemap_to_dataframe(path, losses=True), debug)
 
 
 def run_server(df: pd.DataFrame, debug=True):
@@ -330,18 +354,9 @@ def run_server(df: pd.DataFrame, debug=True):
 
     app.scripts.config.serve_locally = True
     app.css.config.serve_locally = True
-    app.run_server(debug=debug)
+    app.run(debug=debug)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        path = sys.argv[1]
-        if os.path.isdir(path):
-            for path in [f for f in os.listdir(path) if f.endswith(".sm")]:
-                print("Using:", path)
-                break
-        run_server(slisemap_to_dataframe(path, losses=True), debug=True)
-    else:
-        print(
-            "Specify the path to a Slisemap object (or a directory containing a slisemap object) as a command line argument"
-        )
+    sys.argv.append("--debug")
+    cli()
