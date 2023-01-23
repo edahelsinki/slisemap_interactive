@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
+import plotly.figure_factory as ff
 import pandas as pd
 import numpy as np
 
@@ -26,7 +27,7 @@ def run_server(df: pd.DataFrame, debug=True):
 
     # Selection lists
     bs = [c for c in df.columns if c[:2] == "B_"]
-    vars = ["Fidelity"] + [c for c in df.columns if c[0] == "X" or c[0] == "Y"]
+    vars = ["Fidelity"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
     clusters = ["No clusters"] + [c for c in df.columns if c.startswith("Clusters")]
 
     # Jitter
@@ -37,7 +38,6 @@ def run_server(df: pd.DataFrame, debug=True):
     df["jitter_2"] = np.random.normal(0, jitter_scale, df.shape[0])
 
     # B matrix
-    # TODO the embedding->matrix hover is wrong
     order_to_sorted = df["Z_1"].argsort()
     index_to_sorted = np.argsort(order_to_sorted)
     sorted_to_index = np.argsort(index_to_sorted)
@@ -69,21 +69,28 @@ def run_server(df: pd.DataFrame, debug=True):
     }
     control_style = {"width": "15em"}
     control_jitter = dcc.Slider(
-        id="jitter",
+        id="slider-jitter",
         min=min(jitters.keys()),
         max=max(jitters.keys()),
         marks=jitters,
         value=min(jitters.keys()),
     )
-    control_jitter_wrapper = html.Div(
+    wrapper_jitter = html.Div(
         children=[control_jitter],
         style={"display": "inline-block", **control_style},
     )
     control_var = dcc.Dropdown(
-        vars, vars[0], id="variable", clearable=False, style=control_style
+        vars, vars[0], id="dd-variable", clearable=False, style=control_style
     )
     control_cluster = dcc.Dropdown(
-        clusters, clusters[0], id="clusters", clearable=False, style=control_style
+        clusters, clusters[0], id="dd-clusters", clearable=False, style=control_style
+    )
+    control_histogram = dcc.Dropdown(
+        ["Histogram", "Density"],
+        "Histogram",
+        id="dd-histogram",
+        clearable=False,
+        style=control_style,
     )
 
     # Plots
@@ -110,7 +117,12 @@ def run_server(df: pd.DataFrame, debug=True):
                 children=[
                     html.H1(children="Interactive SLISEMAP", style=header_style),
                     html.Div(
-                        children=[control_jitter_wrapper, control_var, control_cluster],
+                        children=[
+                            wrapper_jitter,
+                            control_histogram,
+                            control_var,
+                            control_cluster,
+                        ],
                         style=control_style_div,
                     ),
                 ],
@@ -133,7 +145,6 @@ def run_server(df: pd.DataFrame, debug=True):
         Input(plot_embedding, "hoverData"),
     )
     def embedding_callback(jitter, variable, cluster, hover):
-        # TODO bar on the left?
         if not cluster.startswith("No"):
             fig = px.scatter(
                 df,
@@ -175,12 +186,13 @@ def run_server(df: pd.DataFrame, debug=True):
         if jitter > 0:
             fig.data[0].x += df["jitter_1"] * jitter
             fig.data[0].y += df["jitter_2"] * jitter
+        fig.update_yaxes(scaleanchor="x", scaleratio=1)
         fig.update_layout(
             margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
             xaxis_title=None,
             yaxis_title=None,
+            template="plotly_white",
         )
-        fig.update_yaxes(scaleanchor="x", scaleratio=1)
         return fig
 
     @app.callback(
@@ -212,7 +224,10 @@ def run_server(df: pd.DataFrame, debug=True):
             y=bs,
         )
         fig.update_xaxes(showticklabels=False)
-        fig.update_layout(margin=dict(l=10, r=10, t=30, b=20, autoexpand=True))
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
+            template="plotly_white",
+        )
         if hover > -1:
             fig.add_vline(x=index_to_sorted[hover])
         return fig
@@ -260,6 +275,7 @@ def run_server(df: pd.DataFrame, debug=True):
             margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
             xaxis_title=None,
             yaxis_title="Coefficient",
+            template="plotly_white",
         )
         return fig
 
@@ -267,34 +283,51 @@ def run_server(df: pd.DataFrame, debug=True):
         Output(plot_hist, "figure"),
         Input(control_var, "value"),
         Input(control_cluster, "value"),
+        Input(control_histogram, "value"),
         Input(hover_point, "data"),
     )
-    def histogram_callback(variable, cluster, hover):
-        # TODO density plots?
+    def histogram_callback(variable, cluster, histogram, hover):
         if not cluster.startswith("No"):
-            fig = px.histogram(
-                df,
-                variable,
-                color=cluster,
-                title=f"{variable} histogram",
-                category_orders={cluster: df[cluster].cat.categories},
-            )
+            if histogram == "Histogram":
+                fig = px.histogram(
+                    df,
+                    variable,
+                    color=cluster,
+                    title=f"{variable} histogram",
+                    category_orders={cluster: df[cluster].cat.categories},
+                )
+            else:
+                df2 = df.groupby(cluster)[variable]
+                fig = ff.create_distplot(
+                    [df2.get_group(g) for g in df[cluster].cat.categories],
+                    [str(g) for g in df[cluster].cat.categories],
+                    show_hist=False,
+                    colors=px.colors.qualitative.Plotly,
+                )
+                fig.layout.yaxis.domain = [0.31, 1]
+                fig.layout.yaxis2.domain = [0, 0.29]
+                fig.update_layout(
+                    title=f"{variable} density plot",
+                    legend=dict(title="Clusters", traceorder="normal"),
+                )
         else:
-            try:
+            if histogram == "Histogram":
                 fig = px.histogram(df, variable, title=f"{variable} histogram")
-            except:
-                fig = px.histogram(df, variable, title=f"{variable} histogram")
+            else:
+                fig = ff.create_distplot([df[variable]], [variable], show_hist=False)
+                fig.layout.yaxis.domain = [0.21, 1]
+                fig.layout.yaxis2.domain = [0, 0.19]
+                fig.update_layout(showlegend=False, title=f"{variable} density plot")
         if hover > -1:
             fig.add_vline(x=df[variable][hover])
         fig.update_layout(
             margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
             xaxis_title=None,
-            yaxis_title="Count",
+            yaxis_title=None,
+            template="plotly_white",
         )
         return fig
 
-    # TODO better theme?
-    # TODO sliemap column names
     app.scripts.config.serve_locally = True
     app.css.config.serve_locally = True
     app.run_server(debug=debug)
