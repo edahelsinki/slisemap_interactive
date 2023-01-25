@@ -51,6 +51,8 @@ def run_server(df: pd.DataFrame, debug=True):
 
     # Selection lists
     bs = [c for c in df.columns if c[:2] == "B_"]
+    ls = [c for c in df.columns if c[:2] == "L_"]
+    zs = [c for c in df.columns if c[:2] == "Z_"]
     vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
     clusters = ["No clusters"] + [c for c in df.columns if c.startswith("Clusters")]
 
@@ -62,7 +64,7 @@ def run_server(df: pd.DataFrame, debug=True):
     df["jitter_2"] = np.random.normal(0, jitter_scale, df.shape[0])
 
     # B matrix
-    order_to_sorted = df["Z_1"].argsort()
+    order_to_sorted = df[zs[0]].argsort()
     index_to_sorted = np.argsort(order_to_sorted)
     sorted_to_index = np.argsort(index_to_sorted)
     B_mat = df[bs].to_numpy()[order_to_sorted, :].T
@@ -172,38 +174,37 @@ def run_server(df: pd.DataFrame, debug=True):
         if not cluster.startswith("No"):
             fig = px.scatter(
                 df,
-                x="Z_1",
-                y="Z_2",
+                x=zs[0],
+                y=zs[1],
                 color=cluster,
                 symbol=cluster,
                 category_orders={cluster: df[cluster].cat.categories},
                 title="Embedding",
             )
         else:
-            labs = {variable: "Local loss&nbsp;"} if variable == "Local loss" else None
             hover = nested_get(hover, "points", 0, "pointIndex")
             if hover is not None and hover > 0 and variable == "Local loss":
-                variable = f"L_{hover+1}"
+                variable = ls[hover]
                 fig = px.scatter(
                     df,
-                    x="Z_1",
-                    y="Z_2",
+                    x=zs[0],
+                    y=zs[1],
                     color=variable,
                     title="Alternative Locations",
                     opacity=0.9,
                     color_continuous_scale="Viridis_r",
-                    labels=labs,
+                    labels={variable: "Local loss&nbsp;"},
                 )
             else:
                 fig = px.scatter(
                     df,
-                    x="Z_1",
-                    y="Z_2",
+                    x=zs[0],
+                    y=zs[1],
                     color=variable,
                     color_continuous_scale="Plasma_r",
                     title="Embedding",
                     opacity=0.9,
-                    labels=labs,
+                    labels={"Local loss": "Local loss&nbsp;"},
                 )
         if jitter > 0:
             fig.data[0].x += df["jitter_1"] * jitter
