@@ -29,8 +29,9 @@ def slisemap_to_dataframe(
         clusters: Return cluster indices (if greater than one). Defaults to 9.
 
     Returns:
-        A dataframe containing the X, Y, Z, B, Fidelity, (L, Cluster) matrices from the Slisemap object.
+        A dataframe containing the X, Y, Z, B, Local loss, (L, Cluster) matrices from the Slisemap object.
     """
+    # TODO slisemap column names
 
     if isinstance(path, Slisemap):
         sm = path
@@ -85,7 +86,7 @@ def slisemap_to_dataframe(
     del B
 
     L = sm.get_L()
-    dfs.append(pd.DataFrame({"Fidelity": L.diagonal()}))
+    dfs.append(pd.DataFrame({"Local loss": L.diagonal()}))
     if losses:
         Ln = [f"L_{i+1}" for i in range(L.shape[1])]
         dfs.append(pd.DataFrame.from_records(L, columns=Ln))

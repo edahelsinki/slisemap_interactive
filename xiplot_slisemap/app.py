@@ -51,7 +51,7 @@ def run_server(df: pd.DataFrame, debug=True):
 
     # Selection lists
     bs = [c for c in df.columns if c[:2] == "B_"]
-    vars = ["Fidelity"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
+    vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
     clusters = ["No clusters"] + [c for c in df.columns if c.startswith("Clusters")]
 
     # Jitter
@@ -180,8 +180,9 @@ def run_server(df: pd.DataFrame, debug=True):
                 title="Embedding",
             )
         else:
+            labs = {variable: "Local loss&nbsp;"} if variable == "Local loss" else None
             hover = nested_get(hover, "points", 0, "pointIndex")
-            if hover is not None and hover > 0 and variable == "Fidelity":
+            if hover is not None and hover > 0 and variable == "Local loss":
                 variable = f"L_{hover+1}"
                 fig = px.scatter(
                     df,
@@ -191,7 +192,7 @@ def run_server(df: pd.DataFrame, debug=True):
                     title="Alternative Locations",
                     opacity=0.9,
                     color_continuous_scale="Viridis_r",
-                    labels={variable: "Fidelity&nbsp;&nbsp;&nbsp;"},
+                    labels=labs,
                 )
             else:
                 fig = px.scatter(
@@ -202,11 +203,8 @@ def run_server(df: pd.DataFrame, debug=True):
                     color_continuous_scale="Plasma_r",
                     title="Embedding",
                     opacity=0.9,
-                    labels={variable: "Fidelity&nbsp;&nbsp;&nbsp;"}
-                    if variable == "Fidelity"
-                    else None,
+                    labels=labs,
                 )
-
         if jitter > 0:
             fig.data[0].x += df["jitter_1"] * jitter
             fig.data[0].y += df["jitter_2"] * jitter
