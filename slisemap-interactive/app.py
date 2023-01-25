@@ -168,7 +168,7 @@ def run_server(df: pd.DataFrame, debug=True):
         Input(control_jitter, "value"),
         Input(control_var, "value"),
         Input(control_cluster, "value"),
-        Input(plot_embedding, "hoverData"),
+        Input(hover_point, "data"),
     )
     def embedding_callback(jitter, variable, cluster, hover):
         if not cluster.startswith("No"):
@@ -181,9 +181,11 @@ def run_server(df: pd.DataFrame, debug=True):
                 category_orders={cluster: df[cluster].cat.categories},
                 title="Embedding",
             )
+            fig.update_traces(hovertemplate=None, hoverinfo="none")
+            variable = cluster
         else:
-            hover = nested_get(hover, "points", 0, "pointIndex")
-            if hover is not None and hover > 0 and variable == "Local loss":
+            ll = variable == "Local loss"
+            if hover is not None and hover > 0 and ll:
                 variable = ls[hover]
                 fig = px.scatter(
                     df,
@@ -204,17 +206,29 @@ def run_server(df: pd.DataFrame, debug=True):
                     color_continuous_scale="Plasma_r",
                     title="Embedding",
                     opacity=0.9,
-                    labels={"Local loss": "Local loss&nbsp;"},
+                    labels={"Local loss": "Local loss&nbsp;"} if ll else None,
                 )
+            if ll:
+                fig.update_traces(hovertemplate=None, hoverinfo="none")
         if jitter > 0:
             fig.data[0].x += df["jitter_1"] * jitter
             fig.data[0].y += df["jitter_2"] * jitter
+        if hover is not None and hover > -1:
+            trace = px.scatter(df.iloc[[hover]], x=zs[0], y=zs[1]).update_traces(
+                hoverinfo="skip",
+                hovertemplate=None,
+                marker=dict(
+                    size=15, color="rgba(0,0,0,0)", line=dict(width=1, color="black")
+                ),
+            )
+            fig.add_traces(trace.data)
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
         fig.update_layout(
             margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
             xaxis_title=None,
             yaxis_title=None,
             template="plotly_white",
+            uirevision=True,
         )
         return fig
 

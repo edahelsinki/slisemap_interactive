@@ -25,7 +25,7 @@ def slisemap_to_dataframe(
         clusters: Return cluster indices (if greater than one). Defaults to 9.
 
     Returns:
-        A dataframe containing the X, Y, Z, B, Local loss, (L, Cluster) matrices from the Slisemap object.
+        A dataframe containing data from the Slisemap object (columns: "X_*", "Y_*", "Z_*", "B_*", "Local loss", ("L_*", "Clusters *")).
     """
     if isinstance(path, Slisemap):
         sm = path
