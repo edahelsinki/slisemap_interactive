@@ -29,4 +29,4 @@ github = "https://github.com/edahelsinki/xiplot_slisemap"
 load = "xiplot_slisemap:hooks:load"
 
 [project.scripts]
-slisemap-dash = "xiplot_slisemap:app:cli"
+slisemap-interactive = "xiplot_slisemap:app:cli"
