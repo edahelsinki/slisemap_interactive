@@ -1,7 +1,7 @@
 import numpy as np
 from slisemap import Slisemap
 
-from xiplot_slisemap.load import *
+from slisemap_interactive.load import *
 
 
 def test_load_slisemap():
