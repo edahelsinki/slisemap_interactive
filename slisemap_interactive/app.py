@@ -2,28 +2,23 @@
     Simple standalone Dash app.
 """
 import argparse
-import sys
 import os
-from typing import Any, Dict
+import sys
+from os import PathLike
+from typing import Any, Dict, Literal, Union
+from warnings import warn
 
-from dash import Dash, html
 import pandas as pd
+from dash import Dash
+from jupyter_dash import JupyterDash
+from slisemap import Slisemap
 
+from slisemap_interactive.layout import setup_page
 from slisemap_interactive.load import slisemap_to_dataframe
-from slisemap_interactive.plots import (
-    ClusterDropdown,
-    EmbeddingPlot,
-    HistogramDropdown,
-    JitterSlider,
-    ModelBarPlot,
-    ModelMatrixPlot,
-    VariableDropdown,
-    HoverData,
-    VariableHistogram,
-)
 
 
 def cli():
+    """Plot a slisemap object interactively. This function acts like a command line program."""
     parser = argparse.ArgumentParser(
         prog="slisemap-interactive",
         description="Slisemap - Interactive:   A Dash app for interactively visualising Slisemap objects",
@@ -48,87 +43,146 @@ def cli():
         kwargs["host"] = args.host
     if args.port:
         kwargs["port"] = args.port
-    run_server(slisemap_to_dataframe(path, losses=True), **kwargs)
+    ForegroundApp(path).run(**kwargs)
 
 
-def run_server(df: pd.DataFrame, appargs: Dict[str, Any] = {}, **kwargs):
-    appargs.setdefault("name", __name__)
-    appargs.setdefault("serve_locally", True)
-    appargs.setdefault("title", "Intercative Slisemap")
-    app = Dash(**appargs)
-    setup_page(app, df)
-    kwargs.setdefault("debug", True)
-    app.run(**kwargs)
+def plot(slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs):
+    """Plot a Slisemap object interactively.
+    This function is designed to be called from a jupyter notebook or an interactive Python shell.
+    This function automatically starts a server in the background.
+
+    Args:
+        slisemap: The Slisemap object.
+        *args: Positional arguments forwarded to `BackgroundApp.display()`.
+        **kwargs: Keyword arguments forwarded to `BackgroundApp.display()`.
+    """
+    app = BackgroundApp.get_app(slisemap)
+    # TODO allow changing of data
+    app.display(*args, **kwargs)
 
 
-def setup_page(app: Dash, df: pd.DataFrame):
-    # Styles
-    style_topbar = {
-        "display": "flex",
-        "flex-direction": "row",
-        "align-items": "center",
-        "justify-content": "space-between",
-        "gap": "0px",
-    }
-    style_header = {"flex-grow": "1", "flex-shrink": "1"}
-    style_control_div = {
-        "display": "flex",
-        "flex-direction": "row",
-        "align-items": "center",
-        "justify-content": "right",
-        "flex-wrap": "wrap",
-        "gap": "0px",
-        "flex-grow": "1",
-        "flex-shrink": "1",
-    }
-    style_controls = {"width": "15em"}
-    style_plot_div = {
-        "display": "flex",
-        "flex-direction": "row",
-        "align-items": "stretch",
-        "justify-content": "center",
-        "align-content": "center",
-        "flex-wrap": "wrap",
-        "gap": "0px",
-    }
-    style_plots = {"min-width": "40em", "flex": "1 1 50%"}
+class ForegroundApp(Dash):
+    """Create a blocking Dash app for interactive visualisations of a Slisemap object."""
 
-    # Elements
-    hover_index = HoverData()
-    controls = [
-        JitterSlider(style={"display": "inline-block", **style_controls}),
-        HistogramDropdown(style=style_controls),
-        VariableDropdown(df, style=style_controls),
-        ClusterDropdown(df, style=style_controls),
-    ]
-    plots = [
-        EmbeddingPlot(style=style_plots),
-        ModelMatrixPlot(style=style_plots),
-        ModelBarPlot(style=style_plots),
-        VariableHistogram(style=style_plots),
-    ]
+    def __init__(
+        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs
+    ):
+        super().__init__(*args, title="Interactive Slisemap", **kwargs)
+        if not isinstance(slisemap, pd.DataFrame):
+            slisemap = slisemap_to_dataframe(slisemap)
+        setup_page(self, slisemap)
 
-    # Register callbacks
-    HoverData.register_callbacks(app)
-    EmbeddingPlot.register_callbacks(app, df)
-    ModelMatrixPlot.register_callbacks(app, df)
-    ModelBarPlot.register_callbacks(app, df)
-    VariableHistogram.register_callbacks(app, df)
 
-    # Layout
-    app.layout = html.Div(
-        children=[
-            html.Div(
-                children=[
-                    html.H1(children="Interactive Slisemap", style=style_header),
-                    html.Div(children=controls, style=style_control_div),
-                ],
-                style=style_topbar,
-            ),
-            html.Div(children=plots, style=style_plot_div),
-            hover_index,
-        ]
-    )
+class BackgroundApp(JupyterDash):
+    """Create a non-blocking Dash app for interactive visualisations of Slisemap objects."""
+
+    # Store current app for reuse as a singleton
+    __app = None
+
+    def __init__(
+        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs
+    ):
+        """Create the `JupyterDash` app, see `JupyterDash()`."""
+        if BackgroundApp.__app is not None:
+            warn(
+                "A `JupyterApp` already exists. Use `JupyterApp.get_app(...)` instead of `JupyterApp(...)` to reuse it.",
+                Warning,
+            )
+        super().__init__(*args, **kwargs)
+        if not isinstance(slisemap, pd.DataFrame):
+            slisemap = slisemap_to_dataframe(slisemap)
+        setup_page(self, slisemap)
+        self._display_url = None
+        self._display_port = None
+        self._display_call = None
+
+    @classmethod
+    def get_app(
+        cls,
+        slisemap: Union[pd.DataFrame, Slisemap, str, PathLike],
+        appargs: Dict[str, Any] = {},
+        runargs: Dict[str, Any] = {},
+    ) -> "BackgroundApp":
+        """Get the currently running `JupyterApp`, or start a new one.
+
+        Args:
+            slisemap: TODO remove
+            appargs: Keyword arguments to `JupyterApp()`. Defaults to {}.
+            runargs: Keyword arguments to `JupyterApp.run_server()`. Defaults to {}.
+
+        Returns:
+            The currently running `JupyterApp`.
+        """
+        if BackgroundApp.__app is None:
+            app = BackgroundApp(slisemap, **appargs)
+            app.run_server(**runargs)
+        return BackgroundApp.__app
+
+    def run_server(self, *args, **kwargs):
+        """Start the server, see `JupyterDash.run_server()`."""
+        super().run_server(*args, **kwargs)
+        BackgroundApp.__app = self
+
+    def shutdown(self):
+        """Shutdown the server"""
+        for thread in self._server_threads.values():
+            thread.kill()
+            thread.join()
+        self._server_threads.clear()
+        if BackgroundApp.__app == self:
+            BackgroundApp.__app = None
+
+    def _display_in_colab(self, url, port, mode, width, height):
+        # Catch parameters to the display function for reuse later (see `BackgroundApp.display()`)
+        self._display_url = url
+        self._display_port = port
+        self._display_call = super()._display_in_colab
+
+    def _display_in_jupyter(self, url, port, mode, width, height):
+        # Catch parameters to the display function for reuse later (see `BackgroundApp.display()`)
+        self._display_url = url
+        self._display_port = port
+        self._display_call = super()._display_in_jupyter
+
+    def display(
+        self,
+        mode: Literal[None, "inline", "external", "jupyterlab"] = None,
+        width: Union[str, int] = "100%",
+        height: Union[str, int] = 1000,
+    ):
+        """Display the plots.
+
+        Args:
+            mode: How should the plot be displayed (see `JupyterDash.run_server()`). Defaults to "inline" in a notebook and to "external" otherwise.
+            width: Width of the iframe. Defaults to "100%".
+            height: Height of the iframe. Defaults to 1000.
+
+        Raises:
+            Exception: The server must be started (through `run_server()`) before the plots are displayed.
+        """
+        if self._display_call is None:
+            raise Exception("You need to run `run_server()` before displaying results")
+        if mode is None:
+            mode = "inline" if _can_display_iframe() else "external"
+        self._display_call(self._display_url, self._display_port, mode, width, height)
+
+
+def _can_display_iframe() -> bool:
+    """Check if the current Python session is able to display iframes."""
+    try:
+        from IPython import get_ipython
+
+        ipython = str(type(get_ipython()))
+        if "google.colab" in ipython:
+            return True  # Google colab
+        elif "zmqshell" in ipython:
+            return True  # Jupyter
+        if "terminal" in ipython:
+            return False  # IPython console
+        else:
+            return False  # Unknown
+    except:
+        return False  # not even IPython
 
 
 if __name__ == "__main__":
