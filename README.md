@@ -2,7 +2,7 @@
 
 Interactive plots for [Slisemap](https://github.com/edahelsinki/slisemap) using [Dash](https://dash.plotly.com/). This package can be used in four different ways:
 
-1. __Standalone:__ To start a standalone dash app just run `slisemap-interactive path/to/slisemap/object.sm` (if the package has been installed) or `python slisemap-interactive/app.py path/to/slisemap/object.sm` (in the root of the repository).
+1. __Standalone:__ To start a standalone dash app just run `slisemap-interactive path/to/slisemap/object.sm` (if the package has been installed) or `python -m slisemap_interactive path/to/slisemap/object.sm` (in the root of the repository).
 
 2. __REPL:__ Use it as replacement plots for Slisemap from an interactive Python terminal. (TODO: instructions)
 
@@ -16,6 +16,7 @@ To use the plugin, just install the package in the same Python environment as [Ï
 
 - [x] Slisemap object to dataframe
 - [x] Standalone Dash app
-- [ ] Run from python REPL
-- [ ] Run in jupyter
+- [x] Run from python REPL
+- [x] Run in jupyter
+- [ ] Allow updating of data
 - [ ] Ï‡iplot plugin

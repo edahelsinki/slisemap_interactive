@@ -16,7 +16,7 @@ classifiers = [
     "Framework :: Dash",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
-dependencies = ["slisemap", "numpy", "dash", "pandas", "plotly"]
+dependencies = ["slisemap", "numpy", "dash", "pandas", "plotly", "jupyter-dash"]
 
 [project.optional-dependencies]
 xiplot = ["xiplot"]

@@ -4,12 +4,13 @@
 import argparse
 import sys
 import os
+from typing import Any, Dict
 
 from dash import Dash, html
 import pandas as pd
 
-from load import slisemap_to_dataframe
-from plots import (
+from slisemap_interactive.load import slisemap_to_dataframe
+from slisemap_interactive.plots import (
     ClusterDropdown,
     EmbeddingPlot,
     HistogramDropdown,
@@ -24,30 +25,43 @@ from plots import (
 
 def cli():
     parser = argparse.ArgumentParser(
-        prog="slisemap-dash",
-        description="SLISEMAP - Dash:   A Dash app for interactively visualising SLISEMAP objects",
+        prog="slisemap-interactive",
+        description="Slisemap - Interactive:   A Dash app for interactively visualising Slisemap objects",
     )
     parser.add_argument(
         "PATH",
         help="The path to a Slisemap object (or a directory containing a Slisemap object)",
     )
+    parser.add_argument("--host", help="Host IP used to serve the application")
+    parser.add_argument("-p", "--port", help="Port used to serve the application")
     parser.add_argument("-d", "--debug", action="store_true", help="enable debug mode")
-    parser.add_argument(
-        "--no-debug", action="store_true", help="force disable debug mode"
-    )
     args = parser.parse_args()
     path = args.PATH
-    debug = not args.no_debug and args.debug
     if os.path.isdir(path):
         for path in [f for f in os.listdir(path) if f.endswith(".sm")]:
             print("Using:", path)
             break
-    run_server(slisemap_to_dataframe(path, losses=True), debug)
+    kwargs = {}
+    if args.debug:
+        kwargs["debug"] = True
+    if args.host:
+        kwargs["host"] = args.host
+    if args.port:
+        kwargs["port"] = args.port
+    run_server(slisemap_to_dataframe(path, losses=True), **kwargs)
 
 
-def run_server(df: pd.DataFrame, debug=True):
-    app = Dash(__name__)
+def run_server(df: pd.DataFrame, appargs: Dict[str, Any] = {}, **kwargs):
+    appargs.setdefault("name", __name__)
+    appargs.setdefault("serve_locally", True)
+    appargs.setdefault("title", "Intercative Slisemap")
+    app = Dash(**appargs)
+    setup_page(app, df)
+    kwargs.setdefault("debug", True)
+    app.run(**kwargs)
 
+
+def setup_page(app: Dash, df: pd.DataFrame):
     # Styles
     style_topbar = {
         "display": "flex",
@@ -106,7 +120,7 @@ def run_server(df: pd.DataFrame, debug=True):
         children=[
             html.Div(
                 children=[
-                    html.H1(children="Interactive SLISEMAP", style=style_header),
+                    html.H1(children="Interactive Slisemap", style=style_header),
                     html.Div(children=controls, style=style_control_div),
                 ],
                 style=style_topbar,
@@ -115,10 +129,6 @@ def run_server(df: pd.DataFrame, debug=True):
             hover_index,
         ]
     )
-
-    app.scripts.config.serve_locally = True
-    app.css.config.serve_locally = True
-    app.run(debug=debug)
 
 
 if __name__ == "__main__":
