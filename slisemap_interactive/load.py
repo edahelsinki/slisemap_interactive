@@ -14,6 +14,17 @@ from sklearn.cluster import KMeans
 
 
 def subsample(Z: np.ndarray, n: int, cluster: bool = True) -> np.ndarray:
+    """Get indices for subsampling.
+    Optionally uses k-means clustering to ensure inclusion of rarer data items.
+
+    Args:
+        Z: Embedding matrix.
+        n: Size of the suvset.
+        cluster: Use k-means. Defaults to True.
+
+    Returns:
+        A list of indices.
+    """
     if n >= Z.shape[0]:
         return np.arange(n)
     elif not cluster:
@@ -42,7 +53,7 @@ def slisemap_to_dataframe(
         path: Slisemap object or path to a saved slisemap object.
         losses: Return the loss matrix. Default to True.
         clusters: Return cluster indices (if greater than one). Defaults to 9.
-        max_n: maximum number of data items in the dataframe. Defaults to -1.
+        max_n: maximum number of data items in the dataframe (subsampling is recommended if `n > 5000` and `losses=True`). Defaults to -1.
 
     Returns:
         A dataframe containing data from the Slisemap object (columns: "X_*", "Y_*", "Z_*", "B_*", "Local loss", ("L_*", "Clusters *")).
@@ -66,15 +77,10 @@ def slisemap_to_dataframe(
     coefficients = [c if c[:2] == "B_" else "B_" + c for c in coefficients]
     dimensions = sm.metadata.get_dimensions()
     dimensions = [d if d[:2] == "Z_" else "Z_" + d for d in dimensions]
-    if "rows" in sm.metadata:
-        if ss is ...:
-            rows = sm.metadata["rows"]
-        else:
-            rows = np.asarray(sm.metadata["rows"])[ss]
-    elif ss is ...:
-        rows = range(sm.n)
-    else:
-        rows = ss
+    rows = sm.metadata["rows"] if "rows" in sm.metadata else range(sm.n)
+    if ss is not ...:
+        tr = type(rows) == range and rows == range(sm.n)
+        rows = ss if tr else np.asarray(rows)[ss]
 
     dfs = [
         pd.DataFrame.from_records(sm.metadata.unscale_X()[ss, :], columns=variables),
