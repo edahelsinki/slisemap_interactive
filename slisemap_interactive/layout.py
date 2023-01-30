@@ -20,6 +20,12 @@ from slisemap_interactive.plots import (
 
 
 def register_callbacks(app: Dash, data: DataCache):
+    """Register callbacks for updating the plots.
+
+    Args:
+        app: Dash app.
+        data: Dictionary to get the dataframes from.
+    """
     HoverData.register_callbacks(app, data)
     EmbeddingPlot.register_callbacks(app, data)
     ModelMatrixPlot.register_callbacks(app, data)
@@ -27,7 +33,16 @@ def register_callbacks(app: Dash, data: DataCache):
     VariableHistogram.register_callbacks(app, data)
 
 
-def setup_page(app: Dash, df: pd.DataFrame, data_key: int):
+def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
+    """Generate the layout for a webpage with all plots.
+
+    Args:
+        df: Current dataframe (for dropdowns etc.).
+        data_key: Key to the dataframe (for updating the plots etc.).
+
+    Returns:
+        A div containing the page (set `app.layout = setup_page(...)`).
+    """
     # Styles
     style_topbar = {
         "display": "flex",
@@ -75,7 +90,7 @@ def setup_page(app: Dash, df: pd.DataFrame, data_key: int):
     ]
 
     # Layout
-    app.layout = html.Div(
+    return html.Div(
         children=[
             html.Div(
                 children=[

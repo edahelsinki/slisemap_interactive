@@ -13,7 +13,7 @@ from dash import Dash
 from jupyter_dash import JupyterDash
 from slisemap import Slisemap
 
-from slisemap_interactive.layout import register_callbacks, setup_page
+from slisemap_interactive.layout import register_callbacks, page_with_all_plots
 from slisemap_interactive.load import slisemap_to_dataframe
 from slisemap_interactive.plots import DataCache
 
@@ -84,7 +84,7 @@ class ForegroundApp(Dash):
         if not isinstance(slisemap, pd.DataFrame):
             slisemap = slisemap_to_dataframe(slisemap, max_n=5000)
         key = self.data_cache.add_data(slisemap)
-        setup_page(self, slisemap, key)
+        self.layout = page_with_all_plots(slisemap, key)
         return self
 
 
@@ -119,7 +119,7 @@ class BackgroundApp(JupyterDash):
         if not isinstance(slisemap, pd.DataFrame):
             slisemap = slisemap_to_dataframe(slisemap, max_n=5000)
         key = self.data_cache.add_data(slisemap)
-        setup_page(self, slisemap, key)
+        self.layout = page_with_all_plots(slisemap, key)
         return self
 
     @classmethod
