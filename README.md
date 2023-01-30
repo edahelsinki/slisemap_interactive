@@ -18,5 +18,5 @@ To use the plugin, just install the package in the same Python environment as [Ï
 - [x] Standalone Dash app
 - [x] Run from python REPL
 - [x] Run in jupyter
-- [ ] Allow updating of data
+- [x] Multiple datasets
 - [ ] Ï‡iplot plugin

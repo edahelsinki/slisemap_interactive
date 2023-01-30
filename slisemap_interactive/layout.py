@@ -15,10 +15,19 @@ from slisemap_interactive.plots import (
     VariableDropdown,
     HoverData,
     VariableHistogram,
+    DataCache,
 )
 
 
-def setup_page(app: Dash, df: pd.DataFrame):
+def register_callbacks(app: Dash, data: DataCache):
+    HoverData.register_callbacks(app, data)
+    EmbeddingPlot.register_callbacks(app, data)
+    ModelMatrixPlot.register_callbacks(app, data)
+    ModelBarPlot.register_callbacks(app, data)
+    VariableHistogram.register_callbacks(app, data)
+
+
+def setup_page(app: Dash, df: pd.DataFrame, data_key: int):
     # Styles
     style_topbar = {
         "display": "flex",
@@ -51,26 +60,19 @@ def setup_page(app: Dash, df: pd.DataFrame):
     style_plots = {"min-width": "40em", "flex": "1 1 50%"}
 
     # Elements
-    hover_index = HoverData()
+    hover_index = HoverData(data_key)
     controls = [
-        JitterSlider(style={"display": "inline-block", **style_controls}),
-        HistogramDropdown(style=style_controls),
-        VariableDropdown(df, style=style_controls),
-        ClusterDropdown(df, style=style_controls),
+        JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
+        HistogramDropdown(data_key, style=style_controls),
+        VariableDropdown(data_key, df, style=style_controls),
+        ClusterDropdown(data_key, df, style=style_controls),
     ]
     plots = [
-        EmbeddingPlot(style=style_plots),
-        ModelMatrixPlot(style=style_plots),
-        ModelBarPlot(style=style_plots),
-        VariableHistogram(style=style_plots),
+        EmbeddingPlot(data_key, style=style_plots),
+        ModelMatrixPlot(data_key, style=style_plots),
+        ModelBarPlot(data_key, style=style_plots),
+        VariableHistogram(data_key, style=style_plots),
     ]
-
-    # Register callbacks
-    HoverData.register_callbacks(app)
-    EmbeddingPlot.register_callbacks(app, df)
-    ModelMatrixPlot.register_callbacks(app, df)
-    ModelBarPlot.register_callbacks(app, df)
-    VariableHistogram.register_callbacks(app, df)
 
     # Layout
     app.layout = html.Div(

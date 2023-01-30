@@ -13,8 +13,9 @@ from dash import Dash
 from jupyter_dash import JupyterDash
 from slisemap import Slisemap
 
-from slisemap_interactive.layout import setup_page
+from slisemap_interactive.layout import register_callbacks, setup_page
 from slisemap_interactive.load import slisemap_to_dataframe
+from slisemap_interactive.plots import DataCache
 
 
 def cli():
@@ -43,7 +44,7 @@ def cli():
         kwargs["host"] = args.host
     if args.port:
         kwargs["port"] = args.port
-    ForegroundApp(path).run(**kwargs)
+    ForegroundApp().set_data(path).run(**kwargs)
 
 
 def plot(slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs):
@@ -56,21 +57,35 @@ def plot(slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs
         *args: Positional arguments forwarded to `BackgroundApp.display()`.
         **kwargs: Keyword arguments forwarded to `BackgroundApp.display()`.
     """
-    app = BackgroundApp.get_app(slisemap)
-    # TODO allow changing of data
-    app.display(*args, **kwargs)
+    BackgroundApp.get_app().set_data(slisemap).display(*args, **kwargs)
 
 
 class ForegroundApp(Dash):
     """Create a blocking Dash app for interactive visualisations of a Slisemap object."""
 
-    def __init__(
-        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs
-    ):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, title="Interactive Slisemap", **kwargs)
+        self.data_cache = DataCache()
+        register_callbacks(self, self.data_cache)
+
+    def set_data(
+        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike]
+    ) -> "ForegroundApp":
+        """Set which data the app should show new connections.
+        Old data is cached so that old connections continue working.
+        For existing connections, refresh the page to get the latest data.
+
+        Args:
+            slisemap: Data.
+
+        Returns:
+            self for chaining.
+        """
         if not isinstance(slisemap, pd.DataFrame):
-            slisemap = slisemap_to_dataframe(slisemap)
-        setup_page(self, slisemap)
+            slisemap = slisemap_to_dataframe(slisemap, max_n=5000)
+        key = self.data_cache.add_data(slisemap)
+        setup_page(self, slisemap, key)
+        return self
 
 
 class BackgroundApp(JupyterDash):
@@ -79,34 +94,41 @@ class BackgroundApp(JupyterDash):
     # Store current app for reuse as a singleton
     __app = None
 
-    def __init__(
-        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs
-    ):
-        """Create the `JupyterDash` app, see `JupyterDash()`."""
-        if BackgroundApp.__app is not None:
-            warn(
-                "A `JupyterApp` already exists. Use `JupyterApp.get_app(...)` instead of `JupyterApp(...)` to reuse it.",
-                Warning,
-            )
+    def __init__(self, *args, **kwargs):
+        """Create the `BackgroundApp` server, see `jupyter_dash.JupyterDash()` for arguments."""
         super().__init__(*args, **kwargs)
-        if not isinstance(slisemap, pd.DataFrame):
-            slisemap = slisemap_to_dataframe(slisemap)
-        setup_page(self, slisemap)
         self._display_url = None
         self._display_port = None
         self._display_call = None
+        self.data_cache = DataCache()
+        register_callbacks(self, self.data_cache)
+
+    def set_data(
+        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike]
+    ) -> "BackgroundApp":
+        """Set which data the app should show new connections.
+        Old data is cached so that old connections continue working.
+        For existing connections, refresh the page to get the latest data.
+
+        Args:
+            slisemap: Data.
+
+        Returns:
+            self for chaining.
+        """
+        if not isinstance(slisemap, pd.DataFrame):
+            slisemap = slisemap_to_dataframe(slisemap, max_n=5000)
+        key = self.data_cache.add_data(slisemap)
+        setup_page(self, slisemap, key)
+        return self
 
     @classmethod
     def get_app(
-        cls,
-        slisemap: Union[pd.DataFrame, Slisemap, str, PathLike],
-        appargs: Dict[str, Any] = {},
-        runargs: Dict[str, Any] = {},
+        cls, appargs: Dict[str, Any] = {}, runargs: Dict[str, Any] = {}
     ) -> "BackgroundApp":
         """Get the currently running `JupyterApp`, or start a new one.
 
         Args:
-            slisemap: TODO remove
             appargs: Keyword arguments to `JupyterApp()`. Defaults to {}.
             runargs: Keyword arguments to `JupyterApp.run_server()`. Defaults to {}.
 
@@ -114,12 +136,17 @@ class BackgroundApp(JupyterDash):
             The currently running `JupyterApp`.
         """
         if BackgroundApp.__app is None:
-            app = BackgroundApp(slisemap, **appargs)
+            app = BackgroundApp(**appargs)
             app.run_server(**runargs)
         return BackgroundApp.__app
 
     def run_server(self, *args, **kwargs):
         """Start the server, see `JupyterDash.run_server()`."""
+        if BackgroundApp.__app is not None:
+            warn(
+                "A `BackgroundApp` already exists. Use `BackgroundApp.get_app(...)` to reuse it.",
+                Warning,
+            )
         super().run_server(*args, **kwargs)
         BackgroundApp.__app = self
 

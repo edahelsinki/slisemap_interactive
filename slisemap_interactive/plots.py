@@ -2,7 +2,7 @@
 Functions for generating dynamic plots.
 """
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Union
 
 from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL
 import plotly.express as px
@@ -12,6 +12,15 @@ import numpy as np
 
 
 def nested_get(obj: Any, *keys) -> Optional[Any]:
+    """Get a value from a nested object.
+
+    Args:
+        obj: The nested object.
+        *keys: Keys to traverse the nested object.
+
+    Returns:
+        The value or None if it does not exist.
+    """
     for key in keys:
         if obj is None or len(obj) == 0:
             return None
@@ -19,87 +28,140 @@ def nested_get(obj: Any, *keys) -> Optional[Any]:
     return obj
 
 
+class DataCache(dict):
+    """Class for holding datasets."""
+
+    def add_data(self, df: pd.DataFrame) -> int:
+        """Add a dataset to the cache.
+        This function checks for and reuses duplicate datasets.
+
+        Args:
+            df: Dataset
+
+        Returns:
+            The key to find the dataset in the cache
+        """
+        for key, value in self.items():
+            if value.equals(df):
+                return key
+        key = np.random.randint(1, np.iinfo(np.int32).max)
+        while key in self:
+            key = np.random.randint(1, np.iinfo(np.int32).max)
+        self[key] = df.copy()
+        return key
+
+
 class JitterSlider(html.Div):
     def __init__(
-        self, scale: float = 0.2, steps: int = 5, controls: str = "default", **kwargs
+        self,
+        data: int,
+        scale: float = 0.2,
+        steps: int = 5,
+        controls: str = "default",
+        **kwargs,
     ):
         values = np.linspace(0.0, scale, steps)
         marks = {0: "No jitter"}
         for v in values[1:]:
             marks[v] = f"{v:g}"
-        id = {"type": "JitterSlider", "controls": controls}
+        id = self.generate_id(data, controls)
         slider = dcc.Slider(id=id, min=0.0, max=scale, marks=marks, value=0.0)
         super().__init__(children=[slider], **kwargs)
 
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
+
 
 class VariableDropdown(dcc.Dropdown):
-    def __init__(self, df: pd.DataFrame, controls: str = "default", **kwargs):
+    def __init__(
+        self, data: int, df: pd.DataFrame, controls: str = "default", **kwargs
+    ):
         vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
-        id = {"type": "VariableDropdown", "controls": controls}
+        id = self.generate_id(data, controls)
         super().__init__(vars, vars[0], id=id, clearable=False, **kwargs)
+
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class ClusterDropdown(dcc.Dropdown):
-    def __init__(self, df: pd.DataFrame, controls: str = "default", **kwargs):
+    def __init__(
+        self, data: int, df: pd.DataFrame, controls: str = "default", **kwargs
+    ):
         clusters = ["No clusters"] + [c for c in df.columns if c.startswith("Clusters")]
-        id = {"type": "ClusterDropdown", "controls": controls}
+        id = self.generate_id(data, controls)
         super().__init__(clusters, clusters[0], id=id, clearable=False, **kwargs)
+
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class HistogramDropdown(dcc.Dropdown):
-    def __init__(self, controls: str = "default", **kwargs):
-        new_var = {"type": "HistogramDropdown", "controls": controls}
-        id = new_var
+    def __init__(self, data: int, controls: str = "default", **kwargs):
+        id = self.generate_id(data, controls)
         super().__init__(
             ["Histogram", "Density"], "Histogram", id=id, clearable=False, **kwargs
         )
 
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
+
 
 class EmbeddingPlot(dcc.Graph):
-    def __init__(self, controls: str = "default", hover: str = "default", **kwargs):
-        id = {
-            "type": "EmbeddingPlot",
-            "controls": controls,
-            "hover": hover,
-            "hoverInput": 1,
-        }
-        super().__init__(id=id, clear_on_unhover=True, **kwargs)
+    def __init__(
+        self, data: int, controls: str = "default", hover: str = "default", **kwargs
+    ):
+        super().__init__(
+            id=self.generate_id(data, controls, hover), clear_on_unhover=True, **kwargs
+        )
 
     @classmethod
-    def register_callbacks(cls, app: Dash, df: pd.DataFrame):
-        dimensions = [c for c in df.columns if c[:2] == "Z_"]
-        losses = [c for c in df.columns if c[:2] == "L_"]
-        jitter_x = np.random.normal(0, 1, df.shape[0])
-        jitter_y = np.random.normal(0, 1, df.shape[0])
+    def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        return {
+            "type": cls.__name__,
+            "data": data,
+            "controls": controls,
+            "hover": hover,
+            "hover_input": 1,
+        }
 
+    @classmethod
+    def get_hover_index(cls, data: DataCache, hover_data: Any):
+        return nested_get(hover_data, "points", 0, "customdata", 0)
+
+    @classmethod
+    def register_callbacks(cls, app: Dash, data: DataCache):
         @app.callback(
-            Output(
-                {
-                    "type": "EmbeddingPlot",
-                    "controls": MATCH,
-                    "hover": MATCH,
-                    "hoverInput": 1,
-                },
-                "figure",
-            ),
-            Input({"type": "JitterSlider", "controls": MATCH}, "value"),
-            Input({"type": "VariableDropdown", "controls": MATCH}, "value"),
-            Input({"type": "ClusterDropdown", "controls": MATCH}, "value"),
-            Input({"type": "HoverData", "hover": MATCH}, "data"),
+            Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
+            Input(JitterSlider.generate_id(MATCH, MATCH), "value"),
+            Input(VariableDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
         def embedding_callback(jitter, variable, cluster, hover):
+            data_key = ctx.triggered_id["data"]
+            df = data[data_key]
+            dimensions = filter(lambda c: c[:2] == "Z_", df.columns)
+            dimx = next(dimensions)
+            dimy = next(dimensions)
+
             def dfmod(var):
                 df2 = pd.DataFrame(
                     {
-                        dimensions[0]: df[dimensions[0]],
-                        dimensions[1]: df[dimensions[1]],
+                        dimx: df[dimx],
+                        dimy: df[dimy],
                         var: df[var],
                         "index": np.arange(df.shape[0]),
                     }
                 )
                 if jitter > 0:
-                    df2[dimensions[0]] += jitter_x * jitter
-                    df2[dimensions[1]] += jitter_y * jitter
+                    prng = np.random.default_rng(data_key)
+                    df2[dimx] += prng.normal(0, jitter, df.shape[0])
+                    df2[dimy] += prng.normal(0, jitter, df.shape[0])
                 return df2
 
             if not cluster.startswith("No"):
@@ -107,8 +169,8 @@ class EmbeddingPlot(dcc.Graph):
                 df2 = dfmod(cluster)
                 fig = px.scatter(
                     df2,
-                    x=dimensions[0],
-                    y=dimensions[1],
+                    x=dimx,
+                    y=dimy,
                     color=cluster,
                     symbol=cluster,
                     category_orders={cluster: df[cluster].cat.categories},
@@ -117,14 +179,15 @@ class EmbeddingPlot(dcc.Graph):
                 )
                 fig.update_traces(hovertemplate=None, hoverinfo="none")
             else:
+                losses = [c for c in df.columns if c[:2] == "L_"]
                 ll = variable == "Local loss"
                 if hover is not None and ll and len(losses) > 0:
                     variable = losses[hover]
                     df2 = dfmod(variable)
                     fig = px.scatter(
                         df2,
-                        x=dimensions[0],
-                        y=dimensions[1],
+                        x=dimx,
+                        y=dimy,
                         color=variable,
                         title="Alternative Locations",
                         opacity=0.8,
@@ -136,8 +199,8 @@ class EmbeddingPlot(dcc.Graph):
                     df2 = dfmod(variable)
                     fig = px.scatter(
                         df2,
-                        x=dimensions[0],
-                        y=dimensions[1],
+                        x=dimx,
+                        y=dimy,
                         color=variable,
                         color_continuous_scale="Plasma_r",
                         title="Embedding",
@@ -148,9 +211,7 @@ class EmbeddingPlot(dcc.Graph):
                 if ll:
                     fig.update_traces(hovertemplate=None, hoverinfo="none")
             if hover is not None:
-                trace = px.scatter(
-                    df2.iloc[[hover]], x=dimensions[0], y=dimensions[1]
-                ).update_traces(
+                trace = px.scatter(df2.iloc[[hover]], x=dimx, y=dimy).update_traces(
                     hoverinfo="skip",
                     hovertemplate=None,
                     marker=dict(
@@ -172,41 +233,42 @@ class EmbeddingPlot(dcc.Graph):
 
 
 class ModelMatrixPlot(dcc.Graph):
-    def __init__(self, controls: str = "default", hover: str = "default", **kwargs):
-        id = {
-            "type": "ModelMatrixPlot",
-            "controls": controls,
-            "hover": hover,
-            "hoverInput": 1,
-        }
-        super().__init__(id=id, clear_on_unhover=True, **kwargs)
+    def __init__(
+        self, data: int, controls: str = "default", hover: str = "default", **kwargs
+    ):
+        super().__init__(
+            id=self.generate_id(data, controls, hover), clear_on_unhover=True, **kwargs
+        )
 
     @classmethod
-    def register_callbacks(cls, app, df):
-        for c in df.columns:
-            if c[:2] == "Z_":
-                zs0 = c
-                break
-        bs = [c for c in df.columns if c[:2] == "B_"]
-        order_to_sorted = df[zs0].argsort()
-        index_to_sorted = np.argsort(order_to_sorted)
-        sorted_to_string = [str(i) for i in np.arange(df.shape[0])[order_to_sorted]]
+    def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        return {
+            "type": cls.__name__,
+            "data": data,
+            "controls": controls,
+            "hover": hover,
+            "hover_input": 1,
+        }
 
-        B_mat = df[bs].to_numpy()[order_to_sorted, :].T
+    @classmethod
+    def get_hover_index(cls, data: DataCache, hover_data: Any):
+        return nested_get(hover_data, "points", 0, "x")
 
+    @classmethod
+    def register_callbacks(cls, app: Dash, data: DataCache):
         @app.callback(
-            Output(
-                {
-                    "type": "ModelMatrixPlot",
-                    "controls": MATCH,
-                    "hover": MATCH,
-                    "hoverInput": 1,
-                },
-                "figure",
-            ),
-            Input({"type": "HoverData", "hover": MATCH}, "data"),
+            Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
+            Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
         def matplot_callback(hover):
+            data_key = ctx.triggered_id["data"]
+            df = data[data_key]
+            zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
+            bs = [c for c in df.columns if c[:2] == "B_"]
+            order_to_sorted = df[zs0].argsort()
+            sorted_to_string = [str(i) for i in order_to_sorted]
+            B_mat = df[bs].to_numpy()[order_to_sorted, :].T
+
             fig = px.imshow(
                 B_mat,
                 color_continuous_midpoint=0,
@@ -217,40 +279,46 @@ class ModelMatrixPlot(dcc.Graph):
                 y=bs,
                 x=sorted_to_string,
             )
-            # fig.data[0]["x"] = [f"{i}" for i in sorted_to_index]
             fig.update_xaxes(showticklabels=False)
             fig.update_layout(
                 margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
                 template="plotly_white",
                 uirevision=True,
             )
-            fig.update_traces(
-                # customdata=sorted_to_index.to_numpy(),
-                hovertemplate="%{y} = %{z}<br>index = %{x}<extra></extra>",  # "%{y} = %{z}<br>index = %{customdata}<extra></extra>",
-            )
+            fig.update_traces(hovertemplate="%{y} = %{z}<extra></extra>")
             if hover is not None:
-                fig.add_vline(x=index_to_sorted[hover])
+                fig.add_vline(x=np.where(order_to_sorted == hover)[0][0])
             return fig
 
 
 class ModelBarPlot(dcc.Graph):
-    def __init__(self, controls: str = "default", hover: str = "default", **kwargs):
-        id = {"type": "ModelBarPlot", "controls": controls, "hover": hover}
-        super().__init__(id=id, **kwargs)
+    def __init__(
+        self, data: int, controls: str = "default", hover: str = "default", **kwargs
+    ):
+        super().__init__(id=self.generate_id(data, controls, hover), **kwargs)
 
     @classmethod
-    def register_callbacks(cls, app, df):
-        coefficients = [c for c in df.columns if c[:2] == "B_"]
-        coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
+    def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        return {
+            "type": cls.__name__,
+            "data": data,
+            "controls": controls,
+            "hover": hover,
+        }
 
+    @classmethod
+    def register_callbacks(cls, app: Dash, data: DataCache):
         @app.callback(
-            Output(
-                {"type": "ModelBarPlot", "controls": MATCH, "hover": MATCH}, "figure"
-            ),
-            Input({"type": "ClusterDropdown", "controls": MATCH}, "value"),
-            Input({"type": "HoverData", "hover": MATCH}, "data"),
+            Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
+            Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
         def barplot_callback(cluster, hover):
+            data_key = ctx.triggered_id["data"]
+            df = data[data_key]
+            coefficients = [c for c in df.columns if c[:2] == "B_"]
+            coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
+
             if hover is not None:
                 fig = px.bar(
                     pd.DataFrame(df[coefficients].iloc[hover]),
@@ -295,23 +363,33 @@ class ModelBarPlot(dcc.Graph):
 
 
 class VariableHistogram(dcc.Graph):
-    def __init__(self, controls: str = "default", hover: str = "default", **kwargs):
-        id = {"type": "VariableHistogram", "controls": controls, "hover": hover}
-        super().__init__(id=id, **kwargs)
+    def __init__(
+        self, data: int, controls: str = "default", hover: str = "default", **kwargs
+    ):
+        super().__init__(id=self.generate_id(data, controls, hover), **kwargs)
 
     @classmethod
-    def register_callbacks(cls, app, df):
+    def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        return {
+            "type": cls.__name__,
+            "data": data,
+            "controls": controls,
+            "hover": hover,
+        }
+
+    @classmethod
+    def register_callbacks(cls, app: Dash, data: DataCache):
         @app.callback(
-            Output(
-                {"type": "VariableHistogram", "controls": MATCH, "hover": MATCH},
-                "figure",
-            ),
-            Input({"type": "VariableDropdown", "controls": MATCH}, "value"),
-            Input({"type": "ClusterDropdown", "controls": MATCH}, "value"),
-            Input({"type": "HistogramDropdown", "controls": MATCH}, "value"),
-            Input({"type": "HoverData", "hover": MATCH}, "data"),
+            Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
+            Input(VariableDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(HistogramDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
         def histogram_callback(variable, cluster, histogram, hover):
+            data_key = ctx.triggered_id["data"]
+            df = data[data_key]
+
             if not cluster.startswith("No"):
                 if histogram == "Histogram":
                     fig = px.histogram(
@@ -351,7 +429,7 @@ class VariableHistogram(dcc.Graph):
                         showlegend=False, title=f"{variable} density plot"
                     )
             if hover is not None:
-                fig.add_vline(x=df[variable][hover])
+                fig.add_vline(x=df[variable].iloc[hover])
             fig.update_layout(
                 margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
                 xaxis_title=None,
@@ -363,30 +441,40 @@ class VariableHistogram(dcc.Graph):
 
 
 class HoverData(dcc.Store):
-    def __init__(self, hover: str = "default", **kwargs):
-        id = {"type": "HoverData", "hover": hover}
-        super().__init__(id=id, data=None, storage_type="memory", **kwargs)
+    def __init__(self, data: int, hover: str = "default", **kwargs):
+        super().__init__(
+            id=self.generate_id(data, hover), data=None, storage_type="memory", **kwargs
+        )
 
     @classmethod
-    def register_callbacks(cls, app):
+    def generate_id(cls, data: int, hover: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "hover": hover}
+
+    @classmethod
+    def register_callbacks(cls, app: Dash, data: Optional[DataCache] = None):
+        input = EmbeddingPlot.generate_id(MATCH, ALL, MATCH)
+        input["type"] = ALL
+
         @app.callback(
-            Output({"type": "HoverData", "hover": MATCH}, "data"),
-            Input(
-                {"type": ALL, "controls": ALL, "hover": MATCH, "hoverInput": 1},
-                "hoverData",
-            ),
+            Output(HoverData.generate_id(MATCH, MATCH), "data"),
+            Input(input, "hoverData"),
             prevent_initial_call=True,
         )
         def hover_callback(inputs):
             tt = ctx.triggered_id["type"]
             if tt == "EmbeddingPlot":
                 for input in inputs:
-                    hover = nested_get(input, "points", 0, "customdata", 0)
+                    hover = EmbeddingPlot.get_hover_index(data, input)
                     if hover is not None:
                         return hover
             elif tt == "ModelMatrixPlot":
                 for input in inputs:
-                    hover = nested_get(input, "points", 0, "x")
+                    hover = ModelMatrixPlot.get_hover_index(data, input)
                     if hover is not None:
                         return int(hover)
+            else:
+                for input in inputs:
+                    hover = nested_get(input, "points", 0, "customdata", 0)
+                    if hover is not None:
+                        return hover
             return None
