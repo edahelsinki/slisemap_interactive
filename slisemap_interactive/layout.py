@@ -17,6 +17,7 @@ from slisemap_interactive.plots import (
     VariableHistogram,
 )
 
+
 def setup_page(app: Dash, df: pd.DataFrame):
     # Styles
     style_topbar = {

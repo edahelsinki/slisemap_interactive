@@ -3,13 +3,13 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "xiplot_slisemap"
+name = "slisemap_interactive"
 version = "0.1"
-description = "Slisemap plugin for xiplot"
+description = "Interactive plots for Slisemap using Dash"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Anton Björklund", email = "anton.bjorklund@helsinki.fi" }]
-keywords = ["xiplot", "slisemap", "plugin", "XAI"]
+keywords = ["Slisemap", "XAI", "visualization", "interactive"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -23,10 +23,13 @@ xiplot = ["xiplot"]
 dev = ["pytest", "black"]
 
 [project.urls]
-github = "https://github.com/edahelsinki/xiplot_slisemap"
+github = "https://github.com/edahelsinki/slisemap_interactive"
 
 [project.entry-points."xiplot.plugins"]
-load = "xiplot_slisemap:hooks:load"
+load = "slisemap_interactive:hooks:load"
 
 [project.scripts]
-slisemap-interactive = "xiplot_slisemap:app:cli"
+slisemap-interactive = "slisemap_interactive:app:cli"
+
+[tool.setuptools]
+packages = ["slisemap_interactive"]

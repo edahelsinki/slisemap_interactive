@@ -118,7 +118,7 @@ class EmbeddingPlot(dcc.Graph):
                 fig.update_traces(hovertemplate=None, hoverinfo="none")
             else:
                 ll = variable == "Local loss"
-                if hover is not None and hover > 0 and ll:
+                if hover is not None and ll and len(losses) > 0:
                     variable = losses[hover]
                     df2 = dfmod(variable)
                     fig = px.scatter(
