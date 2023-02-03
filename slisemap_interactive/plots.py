@@ -2,7 +2,7 @@
 Functions for generating dynamic plots.
 """
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL
 import plotly.express as px
@@ -111,6 +111,18 @@ class HistogramDropdown(dcc.Dropdown):
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
+class ModelBarDropdown(dcc.Dropdown):
+    def __init__(self, data: int, controls: str = "default", **kwargs):
+        id = self.generate_id(data, controls)
+        super().__init__(
+            ["Variables", "Clusters"], "Variables", id=id, clearable=False, **kwargs
+        )
+
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
+
+
 class EmbeddingPlot(dcc.Graph):
     def __init__(
         self, data: int, controls: str = "default", hover: str = "default", **kwargs
@@ -182,6 +194,10 @@ class EmbeddingPlot(dcc.Graph):
                 losses = [c for c in df.columns if c[:2] == "L_"]
                 ll = variable == "Local loss"
                 if hover is not None and ll and len(losses) > 0:
+                    lrange = (
+                        df[losses].abs().min().quantile(0.05) * 0.9,
+                        df[losses].abs().max().quantile(0.95) * 1.1,
+                    )
                     variable = losses[hover]
                     df2 = dfmod(variable)
                     fig = px.scatter(
@@ -189,11 +205,12 @@ class EmbeddingPlot(dcc.Graph):
                         x=dimx,
                         y=dimy,
                         color=variable,
-                        title="Alternative Locations",
+                        title=f"Alternative locations for item {df.index[hover]}",
                         opacity=0.8,
                         color_continuous_scale="Viridis_r",
                         labels={variable: "Local loss&nbsp;"},
                         custom_data=["index"],
+                        range_color=lrange,
                     )
                 else:
                     df2 = dfmod(variable)
@@ -311,9 +328,10 @@ class ModelBarPlot(dcc.Graph):
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(ModelBarDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def barplot_callback(cluster, hover):
+        def barplot_callback(cluster, grouping, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             coefficients = [c for c in df.columns if c[:2] == "B_"]
@@ -324,17 +342,27 @@ class ModelBarPlot(dcc.Graph):
                     pd.DataFrame(df[coefficients].iloc[hover]),
                     range_y=(-coefficient_range, coefficient_range),
                     color=coefficients,
-                    title="Local model",
+                    title=f"Local model for item {df.index[hover]}",
                 )
                 fig.update_layout(showlegend=False)
             elif not cluster.startswith("No"):
-                fig = px.bar(
-                    df.groupby([cluster])[coefficients].mean().T,
-                    color=cluster,
-                    range_y=(-coefficient_range, coefficient_range),
-                    barmode="group",
-                    title="Local models",
-                )
+                if grouping == "Clusters":
+                    fig = px.bar(
+                        df.groupby([cluster])[coefficients].mean().T,
+                        color=cluster,
+                        range_y=(-coefficient_range, coefficient_range),
+                        title="Local models",
+                        facet_col=cluster,
+                    )
+                    fig.update_annotations(visible=False)  # Remove facet labels
+                else:
+                    fig = px.bar(
+                        df.groupby([cluster])[coefficients].mean().T,
+                        color=cluster,
+                        range_y=(-coefficient_range, coefficient_range),
+                        barmode="group",
+                        title="Local models",
+                    )
             else:
                 df2 = pd.DataFrame(df[coefficients].mean())
                 try:
@@ -352,13 +380,14 @@ class ModelBarPlot(dcc.Graph):
                         title="Mean local model",
                     )
                 fig.update_layout(showlegend=False)
+            fig.update_xaxes(title=None)
             fig.update_layout(
                 margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-                xaxis_title=None,
                 yaxis_title="Coefficient",
                 template="plotly_white",
                 uirevision=True,
             )
+            fig.update_traces(hovertemplate="%{x} = %{y}<extra></extra>")
             return fig
 
 

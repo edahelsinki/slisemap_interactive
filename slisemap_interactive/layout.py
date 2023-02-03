@@ -6,6 +6,7 @@ from dash import Dash, html
 import pandas as pd
 
 from slisemap_interactive.plots import (
+    ModelBarDropdown,
     ClusterDropdown,
     EmbeddingPlot,
     HistogramDropdown,
@@ -51,7 +52,9 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "justify-content": "right",
         "flex-wrap": "wrap",
         "gap": "0px",
-        "margin-bottom": "0.5em",
+        "padding": "0.2em",
+        "border": "thin solid lightgrey",
+        "margin-bottom": "0.4em",
     }
     style_header = {
         "flex-grow": "1",
@@ -75,10 +78,11 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
     hover_index = HoverData(data_key)
     topbar = [
         html.H1(children="Interactive Slisemap", style=style_header),
-        JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
-        HistogramDropdown(data_key, style=style_controls),
         VariableDropdown(data_key, df, style=style_controls),
         ClusterDropdown(data_key, df, style=style_controls),
+        JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
+        ModelBarDropdown(data_key, style=style_controls),
+        HistogramDropdown(data_key, style=style_controls),
     ]
     plots = [
         EmbeddingPlot(data_key, style=style_plot),
