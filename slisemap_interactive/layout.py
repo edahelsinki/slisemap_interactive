@@ -48,22 +48,19 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "display": "flex",
         "flex-direction": "row",
         "align-items": "center",
-        "justify-content": "space-between",
-        "gap": "0px",
-    }
-    style_header = {"flex-grow": "1", "flex-shrink": "1"}
-    style_control_div = {
-        "display": "flex",
-        "flex-direction": "row",
-        "align-items": "center",
         "justify-content": "right",
         "flex-wrap": "wrap",
         "gap": "0px",
+        "margin-bottom": "0.5em",
+    }
+    style_header = {
         "flex-grow": "1",
         "flex-shrink": "1",
+        "margin-top": "0px",
+        "margin-bottom": "0px",
     }
-    style_controls = {"width": "15em"}
-    style_plot_div = {
+    style_controls = {"width": "14em"}
+    style_plot_area = {
         "display": "flex",
         "flex-direction": "row",
         "align-items": "stretch",
@@ -72,34 +69,29 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "flex-wrap": "wrap",
         "gap": "0px",
     }
-    style_plots = {"min-width": "40em", "flex": "1 1 50%"}
+    style_plot = {"min-width": "40em", "flex": "1 1 50%"}
 
     # Elements
     hover_index = HoverData(data_key)
-    controls = [
+    topbar = [
+        html.H1(children="Interactive Slisemap", style=style_header),
         JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
         HistogramDropdown(data_key, style=style_controls),
         VariableDropdown(data_key, df, style=style_controls),
         ClusterDropdown(data_key, df, style=style_controls),
     ]
     plots = [
-        EmbeddingPlot(data_key, style=style_plots),
-        ModelMatrixPlot(data_key, style=style_plots),
-        ModelBarPlot(data_key, style=style_plots),
-        VariableHistogram(data_key, style=style_plots),
+        EmbeddingPlot(data_key, style=style_plot),
+        ModelMatrixPlot(data_key, style=style_plot),
+        ModelBarPlot(data_key, style=style_plot),
+        VariableHistogram(data_key, style=style_plot),
     ]
 
     # Layout
     return html.Div(
         children=[
-            html.Div(
-                children=[
-                    html.H1(children="Interactive Slisemap", style=style_header),
-                    html.Div(children=controls, style=style_control_div),
-                ],
-                style=style_topbar,
-            ),
-            html.Div(children=plots, style=style_plot_div),
+            html.Div(children=topbar, style=style_topbar),
+            html.Div(children=plots, style=style_plot_area),
             hover_index,
         ]
     )
