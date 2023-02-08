@@ -3,7 +3,7 @@
 """
 from typing import Any, Callable, Dict
 from pandas import DataFrame
-from .load import slisemap_to_dataframe
+from slisemap.interactive.load import slisemap_to_dataframe
 
 
 def load() -> Dict[str, Callable[[Any], DataFrame]]:

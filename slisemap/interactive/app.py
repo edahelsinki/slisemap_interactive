@@ -13,9 +13,9 @@ from dash import Dash
 from jupyter_dash import JupyterDash
 from slisemap import Slisemap
 
-from slisemap_interactive.layout import register_callbacks, page_with_all_plots
-from slisemap_interactive.load import slisemap_to_dataframe
-from slisemap_interactive.plots import DataCache
+from slisemap.interactive.layout import register_callbacks, page_with_all_plots
+from slisemap.interactive.load import slisemap_to_dataframe
+from slisemap.interactive.plots import DataCache
 
 
 def cli():

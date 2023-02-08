@@ -25,11 +25,11 @@ dev = ["pytest", "black"]
 [project.urls]
 github = "https://github.com/edahelsinki/slisemap_interactive"
 
-[project.entry-points."xiplot.plugins"]
-load = "slisemap_interactive:hooks:load"
+[project.entry-points."xiplot.plugins.read"]
+load = "slisemap.interactive.hooks:load"
 
 [project.scripts]
-slisemap-interactive = "slisemap_interactive:app:cli"
+slisemap_interactive = "slisemap.interactive.app:cli"
 
 [tool.setuptools]
-packages = ["slisemap_interactive"]
+packages = ["slisemap.interactive"]

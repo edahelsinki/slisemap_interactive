@@ -1,7 +1,6 @@
-import utils
 from slisemap import Slisemap
 import numpy as np
-from slisemap_interactive.load import slisemap_to_dataframe
+from slisemap.interactive.load import slisemap_to_dataframe
 
 
 def test_load_slisemap():
