@@ -210,8 +210,3 @@ def _can_display_iframe() -> bool:
             return False  # Unknown
     except:
         return False  # not even IPython
-
-
-if __name__ == "__main__":
-    sys.argv.append("--debug")
-    cli()
