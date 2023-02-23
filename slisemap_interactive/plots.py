@@ -320,15 +320,13 @@ class ModelMatrixPlot(dcc.Graph):
             B_mat,
             color_continuous_midpoint=0,
             aspect="auto",
-            labels=dict(color="Coefficient"),
+            labels=dict(color="Coefficient", x="Data items sorted left to right"),
             title="Local models",
             color_continuous_scale="RdBu",
             y=bs,
             x=sorted_to_string,
         )
-        fig.update_xaxes(
-            showticklabels=False
-        )  # TODO add xlabel: "Data items sorted left to right"
+        fig.update_xaxes(showticklabels=False)
         fig.update_layout(
             margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
             template="plotly_white",
@@ -450,7 +448,7 @@ class DistributionPlot(dcc.Graph):
             Input(HistogramDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def histogram_callback(variable, cluster, histogram, hover):
+        def callback(variable, cluster, histogram, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             return try_twice(lambda: cls.plot(df, variable, histogram, cluster, hover))
@@ -475,12 +473,16 @@ class DistributionPlot(dcc.Graph):
                 )
             else:
                 df2 = df.groupby(cluster)[variable]
-                fig = ff.create_distplot(
-                    [df2.get_group(g) for g in df[cluster].cat.categories],
-                    [str(g) for g in df[cluster].cat.categories],
-                    show_hist=False,
-                    colors=px.colors.qualitative.Plotly,
-                )
+                data = [df2.get_group(g) for g in df2.groups.keys()]
+                clusters = [str(g) for g in df2.groups.keys()]
+                colors = px.colors.qualitative.Plotly
+                colors = colors * ((len(clusters) - 1) // len(colors) + 1)
+                lengths = [len(i) > 1 for i in df2.groups.values()]
+                if not all(lengths):
+                    data = [d for d, l in zip(data, lengths) if l]
+                    colors = [d for d, l in zip(colors, lengths) if l]
+                    clusters = [d for d, l in zip(clusters, lengths) if l]
+                fig = ff.create_distplot(data, clusters, show_hist=False, colors=colors)
                 fig.layout.yaxis.domain = [0.31, 1]
                 fig.layout.yaxis2.domain = [0, 0.29]
                 fig.update_layout(
