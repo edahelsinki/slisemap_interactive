@@ -15,7 +15,7 @@ from slisemap_interactive.plots import (
     ModelMatrixPlot,
     VariableDropdown,
     HoverData,
-    VariableHistogram,
+    DistributionPlot,
     DataCache,
 )
 
@@ -31,7 +31,7 @@ def register_callbacks(app: Dash, data: DataCache):
     EmbeddingPlot.register_callbacks(app, data)
     ModelMatrixPlot.register_callbacks(app, data)
     ModelBarPlot.register_callbacks(app, data)
-    VariableHistogram.register_callbacks(app, data)
+    DistributionPlot.register_callbacks(app, data)
 
 
 def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
@@ -88,7 +88,7 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         EmbeddingPlot(data_key, style=style_plot),
         ModelMatrixPlot(data_key, style=style_plot),
         ModelBarPlot(data_key, style=style_plot),
-        VariableHistogram(data_key, style=style_plot),
+        DistributionPlot(data_key, style=style_plot),
     ]
 
     # Layout

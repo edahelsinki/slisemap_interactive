@@ -2,13 +2,30 @@
 Functions for generating dynamic plots.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Literal, Optional, get_args
 
 from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL
 import plotly.express as px
 import plotly.figure_factory as ff
+from plotly.graph_objects import Figure
 import pandas as pd
 import numpy as np
+from pandas.api.types import is_categorical_dtype
+
+
+def try_twice(fn: Callable[[], Any]) -> Any:
+    """Call a function and if it throws an exception retry it once more.
+
+    Args:
+        fn: The function to call
+
+    Returns:
+        The output from the function.
+    """
+    try:
+        return fn()
+    except:
+        return fn()
 
 
 def nested_get(obj: Any, *keys) -> Optional[Any]:
@@ -90,7 +107,10 @@ class ClusterDropdown(dcc.Dropdown):
     def __init__(
         self, data: int, df: pd.DataFrame, controls: str = "default", **kwargs
     ):
-        clusters = ["No clusters"] + [c for c in df.columns if c.startswith("Clusters")]
+        clusters = ["No clusters"]
+        while clusters[0] in df.columns:
+            clusters[0] += "_"
+        clusters.extend(c for c in df.columns if is_categorical_dtype(df[c]))
         id = self.generate_id(data, controls)
         super().__init__(clusters, clusters[0], id=id, clearable=False, **kwargs)
 
@@ -102,9 +122,8 @@ class ClusterDropdown(dcc.Dropdown):
 class HistogramDropdown(dcc.Dropdown):
     def __init__(self, data: int, controls: str = "default", **kwargs):
         id = self.generate_id(data, controls)
-        super().__init__(
-            ["Histogram", "Density"], "Histogram", id=id, clearable=False, **kwargs
-        )
+        options = get_args(DistributionPlot.PLOT_TYPE_OPTIONS)
+        super().__init__(options, options[0], id=id, clearable=False, **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -114,9 +133,8 @@ class HistogramDropdown(dcc.Dropdown):
 class ModelBarDropdown(dcc.Dropdown):
     def __init__(self, data: int, controls: str = "default", **kwargs):
         id = self.generate_id(data, controls)
-        super().__init__(
-            ["Variables", "Clusters"], "Variables", id=id, clearable=False, **kwargs
-        )
+        options = get_args(ModelBarPlot.GROUPING_OPTIONS)
+        super().__init__(options, options[0], id=id, clearable=False, **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -142,7 +160,7 @@ class EmbeddingPlot(dcc.Graph):
         }
 
     @classmethod
-    def get_hover_index(cls, data: DataCache, hover_data: Any):
+    def get_hover_index(cls, data: DataCache, hover_data: Any) -> Optional[int]:
         return nested_get(hover_data, "points", 0, "customdata", 0)
 
     @classmethod
@@ -154,99 +172,107 @@ class EmbeddingPlot(dcc.Graph):
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def embedding_callback(jitter, variable, cluster, hover):
+        def callback(jitter, variable, cluster, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             dimensions = filter(lambda c: c[:2] == "Z_", df.columns)
-            dimx = next(dimensions)
-            dimy = next(dimensions)
-
-            def dfmod(var):
-                df2 = pd.DataFrame(
-                    {
-                        dimx: df[dimx],
-                        dimy: df[dimy],
-                        var: df[var],
-                        "index": np.arange(df.shape[0]),
-                    }
-                )
-                if jitter > 0:
-                    prng = np.random.default_rng(data_key)
-                    df2[dimx] += prng.normal(0, jitter, df.shape[0])
-                    df2[dimy] += prng.normal(0, jitter, df.shape[0])
-                return df2
-
-            if not cluster.startswith("No"):
+            x = next(dimensions)
+            y = next(dimensions)
+            if cluster in df.columns:
                 variable = cluster
-                df2 = dfmod(cluster)
+            return cls.plot(df, x, y, variable, jitter, hover, seed=data_key)
+
+    @staticmethod
+    def plot(
+        df: pd.DataFrame,
+        x: str,
+        y: str,
+        variable: str,
+        jitter: float = 0.0,
+        hover: Optional[int] = None,
+        seed: int = 42,
+    ) -> Figure:
+        def dfmod(var):
+            df2 = pd.DataFrame(
+                {x: df[x], y: df[y], var: df[var], "index": np.arange(df.shape[0])}
+            )
+            if jitter > 0:
+                prng = np.random.default_rng(seed)
+                df2[x] += prng.normal(0, jitter, df.shape[0])
+                df2[y] += prng.normal(0, jitter, df.shape[0])
+            return df2
+
+        fig = None
+        if is_categorical_dtype(df[variable]):
+            df2 = dfmod(variable)
+            fig = px.scatter(
+                df2,
+                x=x,
+                y=y,
+                color=variable,
+                symbol=variable,
+                category_orders={variable: df[variable].cat.categories},
+                title="Embedding",
+                custom_data=["index"],
+            )
+            fig.update_traces(hovertemplate=None, hoverinfo="none")
+            ll = False
+        else:
+            ll = variable == "Local loss"
+        if fig is None and ll and hover is not None:
+            losses = [c for c in df.columns if c[:2] == "L_"]
+            if len(losses) == df.shape[0]:
+                lrange = (
+                    df[losses].abs().min().quantile(0.05) * 0.9,
+                    df[losses].abs().max().quantile(0.95) * 1.1,
+                )
+                variable = losses[hover]
+                df2 = dfmod(variable)
                 fig = px.scatter(
                     df2,
-                    x=dimx,
-                    y=dimy,
-                    color=cluster,
-                    symbol=cluster,
-                    category_orders={cluster: df[cluster].cat.categories},
-                    title="Embedding",
+                    x=x,
+                    y=y,
+                    color=variable,
+                    title=f"Alternative locations for item {df.index[hover]}",
+                    opacity=0.8,
+                    color_continuous_scale="Viridis_r",
+                    labels={variable: "Local loss&nbsp;"},
                     custom_data=["index"],
+                    range_color=lrange,
                 )
-                fig.update_traces(hovertemplate=None, hoverinfo="none")
-            else:
-                losses = [c for c in df.columns if c[:2] == "L_"]
-                ll = variable == "Local loss"
-                if hover is not None and ll and len(losses) > 0:
-                    lrange = (
-                        df[losses].abs().min().quantile(0.05) * 0.9,
-                        df[losses].abs().max().quantile(0.95) * 1.1,
-                    )
-                    variable = losses[hover]
-                    df2 = dfmod(variable)
-                    fig = px.scatter(
-                        df2,
-                        x=dimx,
-                        y=dimy,
-                        color=variable,
-                        title=f"Alternative locations for item {df.index[hover]}",
-                        opacity=0.8,
-                        color_continuous_scale="Viridis_r",
-                        labels={variable: "Local loss&nbsp;"},
-                        custom_data=["index"],
-                        range_color=lrange,
-                    )
-                else:
-                    df2 = dfmod(variable)
-                    fig = px.scatter(
-                        df2,
-                        x=dimx,
-                        y=dimy,
-                        color=variable,
-                        color_continuous_scale="Plasma_r",
-                        title="Embedding",
-                        opacity=0.8,
-                        labels={"Local loss": "Local loss&nbsp;"} if ll else None,
-                        custom_data=["index"],
-                    )
-                if ll:
-                    fig.update_traces(hovertemplate=None, hoverinfo="none")
-            if hover is not None:
-                trace = px.scatter(df2.iloc[[hover]], x=dimx, y=dimy).update_traces(
-                    hoverinfo="skip",
-                    hovertemplate=None,
-                    marker=dict(
-                        size=15,
-                        color="rgba(0,0,0,0)",
-                        line=dict(width=1, color="black"),
-                    ),
-                )
-                fig.add_traces(trace.data)
-            fig.update_yaxes(scaleanchor="x", scaleratio=1)
-            fig.update_layout(
-                margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-                xaxis_title=None,
-                yaxis_title=None,
-                template="plotly_white",
-                uirevision=True,
+        if fig is None:
+            df2 = dfmod(variable)
+            fig = px.scatter(
+                df2,
+                x=x,
+                y=y,
+                color=variable,
+                color_continuous_scale="Plasma_r",
+                title="Embedding",
+                opacity=0.8,
+                labels={variable: "Local loss&nbsp;"} if ll else None,
+                custom_data=["index"],
             )
-            return fig
+        if ll:
+            fig.update_traces(hovertemplate=None, hoverinfo="none")
+        if hover is not None:
+            trace = px.scatter(df2.iloc[[hover]], x=x, y=y).update_traces(
+                hoverinfo="skip",
+                hovertemplate=None,
+                marker=dict(
+                    size=15, color="rgba(0,0,0,0)", line=dict(width=1, color="black")
+                ),
+            )
+            fig.add_traces(trace.data)
+        fig.update_yaxes(scaleanchor="x", scaleratio=1)
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
+            xaxis_title=None,
+            yaxis_title=None,
+            template="plotly_white",
+            uirevision=True,
+        )
+        return fig
 
 
 class ModelMatrixPlot(dcc.Graph):
@@ -268,7 +294,7 @@ class ModelMatrixPlot(dcc.Graph):
         }
 
     @classmethod
-    def get_hover_index(cls, data: DataCache, hover_data: Any):
+    def get_hover_index(cls, data: DataCache, hover_data: Any) -> Optional[int]:
         return nested_get(hover_data, "points", 0, "x")
 
     @classmethod
@@ -277,35 +303,41 @@ class ModelMatrixPlot(dcc.Graph):
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def matplot_callback(hover):
+        def callback(hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
-            zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
-            bs = [c for c in df.columns if c[:2] == "B_"]
-            order_to_sorted = df[zs0].argsort()
-            sorted_to_string = [str(i) for i in order_to_sorted]
-            B_mat = df[bs].to_numpy()[order_to_sorted, :].T
+            return cls.plot(df, hover)
 
-            fig = px.imshow(
-                B_mat,
-                color_continuous_midpoint=0,
-                aspect="auto",
-                labels=dict(color="Coefficient"),
-                title="Local models",
-                color_continuous_scale="RdBu",
-                y=bs,
-                x=sorted_to_string,
-            )
-            fig.update_xaxes(showticklabels=False)
-            fig.update_layout(
-                margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-                template="plotly_white",
-                uirevision=True,
-            )
-            fig.update_traces(hovertemplate="%{y} = %{z}<extra></extra>")
-            if hover is not None:
-                fig.add_vline(x=np.where(order_to_sorted == hover)[0][0])
-            return fig
+    @staticmethod
+    def plot(df: pd.DataFrame, hover: Optional[int] = None) -> Figure:
+        zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
+        bs = [c for c in df.columns if c[:2] == "B_"]
+        order_to_sorted = df[zs0].argsort()
+        sorted_to_string = [str(i) for i in order_to_sorted]
+        B_mat = df[bs].to_numpy()[order_to_sorted, :].T
+
+        fig = px.imshow(
+            B_mat,
+            color_continuous_midpoint=0,
+            aspect="auto",
+            labels=dict(color="Coefficient"),
+            title="Local models",
+            color_continuous_scale="RdBu",
+            y=bs,
+            x=sorted_to_string,
+        )
+        fig.update_xaxes(
+            showticklabels=False
+        )  # TODO add xlabel: "Data items sorted left to right"
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
+            template="plotly_white",
+            uirevision=True,
+        )
+        fig.update_traces(hovertemplate="%{y} = %{z}<extra></extra>")
+        if hover is not None:
+            fig.add_vline(x=np.where(order_to_sorted == hover)[0][0])
+        return fig
 
 
 class ModelBarPlot(dcc.Graph):
@@ -331,67 +363,70 @@ class ModelBarPlot(dcc.Graph):
             Input(ModelBarDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def barplot_callback(cluster, grouping, hover):
+        def callback(cluster, grouping, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
-            coefficients = [c for c in df.columns if c[:2] == "B_"]
-            coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
+            return try_twice(lambda: cls.plot(df, cluster, grouping, hover))
 
-            if hover is not None:
-                fig = px.bar(
-                    pd.DataFrame(df[coefficients].iloc[hover]),
-                    range_y=(-coefficient_range, coefficient_range),
-                    color=coefficients,
-                    title=f"Local model for item {df.index[hover]}",
-                )
-                fig.update_layout(showlegend=False)
-            elif not cluster.startswith("No"):
-                if grouping == "Clusters":
-                    fig = px.bar(
-                        df.groupby([cluster])[coefficients].mean().T,
-                        color=cluster,
-                        range_y=(-coefficient_range, coefficient_range),
-                        title="Local models",
-                        facet_col=cluster,
-                    )
-                    fig.update_annotations(visible=False)  # Remove facet labels
-                else:
-                    fig = px.bar(
-                        df.groupby([cluster])[coefficients].mean().T,
-                        color=cluster,
-                        range_y=(-coefficient_range, coefficient_range),
-                        barmode="group",
-                        title="Local models",
-                    )
-            else:
-                df2 = pd.DataFrame(df[coefficients].mean())
-                try:
-                    fig = px.bar(
-                        df2,
-                        color=coefficients,
-                        range_y=(-coefficient_range, coefficient_range),
-                        title="Mean local model",
-                    )
-                except:
-                    fig = px.bar(
-                        df2,
-                        color=coefficients,
-                        range_y=(-coefficient_range, coefficient_range),
-                        title="Mean local model",
-                    )
-                fig.update_layout(showlegend=False)
-            fig.update_xaxes(title=None)
-            fig.update_layout(
-                margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-                yaxis_title="Coefficient",
-                template="plotly_white",
-                uirevision=True,
+    GROUPING_OPTIONS = Literal["Variables", "Clusters"]
+
+    @staticmethod
+    def plot(
+        df: pd.DataFrame,
+        cluster: Optional[str] = None,
+        grouping: GROUPING_OPTIONS = "Variables",
+        hover: Optional[int] = None,
+    ) -> Figure:
+        coefficients = [c for c in df.columns if c[:2] == "B_"]
+        coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
+
+        if hover is not None:
+            fig = px.bar(
+                pd.DataFrame(df[coefficients].iloc[hover]),
+                range_y=(-coefficient_range, coefficient_range),
+                color=coefficients,
+                title=f"Local model for item {df.index[hover]}",
             )
-            fig.update_traces(hovertemplate="%{x} = %{y}<extra></extra>")
-            return fig
+            fig.update_layout(showlegend=False)
+        elif cluster in df.columns and is_categorical_dtype(df[cluster]):
+            if grouping == "Clusters":
+                fig = px.bar(
+                    df.groupby([cluster])[coefficients].mean().T,
+                    color=cluster,
+                    range_y=(-coefficient_range, coefficient_range),
+                    title="Local models",
+                    facet_col=cluster,
+                )
+                fig.update_annotations(visible=False)  # Remove facet labels
+            else:
+                fig = px.bar(
+                    df.groupby([cluster])[coefficients].mean().T,
+                    color=cluster,
+                    range_y=(-coefficient_range, coefficient_range),
+                    barmode="group",
+                    title="Local models",
+                )
+        else:
+            df2 = pd.DataFrame(df[coefficients].mean())
+            fig = px.bar(
+                df2,
+                color=coefficients,
+                range_y=(-coefficient_range, coefficient_range),
+                title="Mean local model",
+            )
+            fig.update_layout(showlegend=False)
+        fig.update_xaxes(title=None)
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
+            yaxis_title="Coefficient",
+            template="plotly_white",
+            uirevision=True,
+        )
+        fig.update_traces(hovertemplate="%{x} = %{y}<extra></extra>")
+        return fig
 
 
-class VariableHistogram(dcc.Graph):
+class DistributionPlot(dcc.Graph):
     def __init__(
         self, data: int, controls: str = "default", hover: str = "default", **kwargs
     ):
@@ -418,55 +453,58 @@ class VariableHistogram(dcc.Graph):
         def histogram_callback(variable, cluster, histogram, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
+            return try_twice(lambda: cls.plot(df, variable, histogram, cluster, hover))
 
-            if not cluster.startswith("No"):
-                if histogram == "Histogram":
-                    fig = px.histogram(
-                        df,
-                        variable,
-                        color=cluster,
-                        title=f"{variable} histogram",
-                        category_orders={cluster: df[cluster].cat.categories},
-                    )
-                else:
-                    df2 = df.groupby(cluster)[variable]
-                    fig = ff.create_distplot(
-                        [df2.get_group(g) for g in df[cluster].cat.categories],
-                        [str(g) for g in df[cluster].cat.categories],
-                        show_hist=False,
-                        colors=px.colors.qualitative.Plotly,
-                    )
-                    fig.layout.yaxis.domain = [0.31, 1]
-                    fig.layout.yaxis2.domain = [0, 0.29]
-                    fig.update_layout(
-                        title=f"{variable} density plot",
-                        legend=dict(title="Clusters", traceorder="normal"),
-                    )
+    PLOT_TYPE_OPTIONS = Literal["Histogram", "Density"]
+
+    def plot(
+        df: pd.DataFrame,
+        variable: str,
+        plot_type: PLOT_TYPE_OPTIONS = "Histogram",
+        cluster: Optional[str] = None,
+        hover: Optional[int] = None,
+    ) -> Figure:
+        if cluster in df.columns and is_categorical_dtype(df[cluster]):
+            if plot_type == "Histogram":
+                fig = px.histogram(
+                    df,
+                    variable,
+                    color=cluster,
+                    title=f"{variable} histogram",
+                    category_orders={cluster: df[cluster].cat.categories},
+                )
             else:
-                if histogram == "Histogram":
-                    try:
-                        fig = px.histogram(df, variable, title=f"{variable} histogram")
-                    except ValueError:  # Sometimes the plot fails on page load
-                        fig = px.histogram(df, variable, title=f"{variable} histogram")
-                else:
-                    fig = ff.create_distplot(
-                        [df[variable]], [variable], show_hist=False
-                    )
-                    fig.layout.yaxis.domain = [0.21, 1]
-                    fig.layout.yaxis2.domain = [0, 0.19]
-                    fig.update_layout(
-                        showlegend=False, title=f"{variable} density plot"
-                    )
-            if hover is not None:
-                fig.add_vline(x=df[variable].iloc[hover])
-            fig.update_layout(
-                margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-                xaxis_title=None,
-                yaxis_title=None,
-                template="plotly_white",
-                uirevision=True,
-            )
-            return fig
+                df2 = df.groupby(cluster)[variable]
+                fig = ff.create_distplot(
+                    [df2.get_group(g) for g in df[cluster].cat.categories],
+                    [str(g) for g in df[cluster].cat.categories],
+                    show_hist=False,
+                    colors=px.colors.qualitative.Plotly,
+                )
+                fig.layout.yaxis.domain = [0.31, 1]
+                fig.layout.yaxis2.domain = [0, 0.29]
+                fig.update_layout(
+                    title=f"{variable} density plot",
+                    legend=dict(title=cluster, traceorder="normal"),
+                )
+        else:
+            if plot_type == "Histogram":
+                fig = px.histogram(df, variable, title=f"{variable} histogram")
+            else:
+                fig = ff.create_distplot([df[variable]], [variable], show_hist=False)
+                fig.layout.yaxis.domain = [0.21, 1]
+                fig.layout.yaxis2.domain = [0, 0.19]
+                fig.update_layout(showlegend=False, title=f"{variable} density plot")
+        if hover is not None:
+            fig.add_vline(x=df[variable].iloc[hover])
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
+            xaxis_title=None,
+            yaxis_title=None,
+            template="plotly_white",
+            uirevision=True,
+        )
+        return fig
 
 
 class HoverData(dcc.Store):
