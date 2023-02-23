@@ -4,13 +4,21 @@ Interactive plots for [Slisemap](https://github.com/edahelsinki/slisemap) using 
 
 1. __Standalone:__ To start a standalone dash app just run `slisemap_interactive path/to/slisemap/object.sm` (if the package has been installed) or `python -m slisemap_interactive path/to/slisemap/object.sm` (in the root of this repository).
 
-2. __REPL:__ Use it as replacement (interactive) plots for Slisemap from a Python terminal. Just import the *plot* function, `from slisemap.interactive import plot`, and use it, `plot(slisemap_object)`.
+2. __REPL:__ Use it as (interactive) replacement plots for Slisemap from a Python terminal. Just import the *plot* function, `from slisemap_interactive import plot`, and use it, `plot(slisemap_object)`.
 
-3. __jupyter:__ To create plots in a jupyter notebook, import the *plot* function, `from slisemap.interactive import plot`, and use it, `plot(slisemap_object)`.
+3. __jupyter:__ To create plots in a jupyter notebook, import the *plot* function, `from slisemap_interactive import plot`, and use it, `plot(slisemap_object)`.
 
 
 4. __[χiplot](https://github.com/edahelsinki/xiplot):__ As a plugin that adds loading and plotting of Slisemap objects.
-To use the plugin, just install the package in the same Python environment as [χiplot](https://github.com/edahelsinki/xiplot). *(This has not yet been implemented!)*
+To use the plugin, just install the package in the same Python environment as [χiplot](https://github.com/edahelsinki/xiplot). __(This has not yet been implemented!)__
+
+## Installation
+
+To install `slisemap_interactive` without manually downloading the repository run:
+
+```
+pip install git+https://github.com/edahelsinki/slisemap_interactive
+```
 
 ## Development
 
@@ -19,5 +27,7 @@ An editable install just links “installed” python files to the python files 
 This takes care of the namespace resolution and also activates the "[entry_points](https://setuptools.pypa.io/en/latest/userguide/entry_point.html)" for the *standalone CLI* and *χiplot-plugin*.
 To do an editable installation run:
 
-``` pip install --editable . ```
+```
+pip install --editable .
+```
 

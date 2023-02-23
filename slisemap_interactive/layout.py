@@ -5,7 +5,7 @@ Create the layout and register callbacks
 from dash import Dash, html
 import pandas as pd
 
-from slisemap.interactive.plots import (
+from slisemap_interactive.plots import (
     ModelBarDropdown,
     ClusterDropdown,
     EmbeddingPlot,

@@ -68,19 +68,23 @@ def slisemap_to_dataframe(
     else:
         ss = ...
 
+    def preface_names(names, preface):
+        return [n if n[:2] == preface else preface + n for n in map(str, names)]
+
     variables = sm.metadata.get_variables(intercept=False)
-    variables = [v if v[:2] == "X_" else "X_" + v for v in variables]
+    variables = preface_names(variables, "X_")
     targets = sm.metadata.get_targets()
     if len(targets) > 1 or targets[0] != "Y":
-        targets = [t if t[:2] == "Y_" else "Y_" + t for t in targets]
+        targets = preface_names(targets, "Y_")
     coefficients = sm.metadata.get_coefficients()
-    coefficients = [c if c[:2] == "B_" else "B_" + c for c in coefficients]
+    coefficients = preface_names(coefficients, "B_")
     dimensions = sm.metadata.get_dimensions()
-    dimensions = [d if d[:2] == "Z_" else "Z_" + d for d in dimensions]
-    rows = sm.metadata["rows"] if "rows" in sm.metadata else range(sm.n)
+    dimensions = preface_names(dimensions, "Z_")
+    rows = sm.metadata.get_rows(fallback=False)
     if ss is not ...:
-        tr = type(rows) == range and rows == range(sm.n)
-        rows = ss if tr else np.asarray(rows)[ss]
+        rows = ss if rows is None else np.asarray(rows)[ss]
+    elif rows is None:
+        rows = range(sm.n)
 
     dfs = [
         pd.DataFrame.from_records(sm.metadata.unscale_X()[ss, :], columns=variables),

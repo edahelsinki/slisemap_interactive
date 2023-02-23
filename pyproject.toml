@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slisemap_interactive"
-version = "0.1"
+version = "0.2"
 description = "Interactive plots for Slisemap using Dash"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,20 +16,24 @@ classifiers = [
     "Framework :: Dash",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
-dependencies = ["slisemap >= 1.3.1", "numpy", "dash", "pandas", "plotly", "jupyter-dash"]
+dependencies = [
+    "slisemap >= 1.3.1",
+    "numpy",
+    "dash",
+    "pandas",
+    "plotly",
+    "jupyter-dash",
+]
 
-[project.optional-dependencies]
-xiplot = ["xiplot"]
-dev = ["pytest", "black"]
 
 [project.urls]
 github = "https://github.com/edahelsinki/slisemap_interactive"
 
 [project.entry-points."xiplot.plugins.read"]
-load = "slisemap.interactive.hooks:load"
+load = "slisemap_interactive.hooks:load"
 
 [project.scripts]
-slisemap_interactive = "slisemap.interactive.app:cli"
+slisemap_interactive = "slisemap_interactive.app:cli"
 
 [tool.setuptools]
-packages = ["slisemap.interactive"]
+packages = ["slisemap_interactive"]
