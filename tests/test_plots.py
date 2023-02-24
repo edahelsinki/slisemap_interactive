@@ -35,10 +35,21 @@ def test_datacache(dataframe):
     assert key != dc.add_data(df2)
 
 
+def test_first_not_none():
+    assert first_not_none([]) is None
+    assert first_not_none([None]) is None
+    assert first_not_none([1]) is 1
+    assert first_not_none([1, 2]) is 1
+    assert first_not_none([None, 2]) is 2
+    assert first_not_none([3, 2], lambda x: x**2) is 9
+    assert first_not_none([3, 2], lambda x: None) is None
+    assert first_not_none([3, 2], lambda x: None if x > 2 else 2) is 2
+
+
 def test_embedding(dataframe):
     graph = EmbeddingPlot(0)
-    assert EmbeddingPlot.get_hover_index(None, None) is None
-    assert EmbeddingPlot.get_hover_index(None, {"points": [{"customdata": [1]}]}) == 1
+    assert EmbeddingPlot.get_hover_index(None) is None
+    assert EmbeddingPlot.get_hover_index({"points": [{"customdata": [1]}]}) == 1
     EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Y_0", 0.2, 2)
     EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", 0.2, 2)
     EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", 0.2, 2)
@@ -46,8 +57,8 @@ def test_embedding(dataframe):
 
 def test_matrix(dataframe):
     graph = ModelMatrixPlot(0)
-    assert ModelMatrixPlot.get_hover_index(None, None) is None
-    assert ModelMatrixPlot.get_hover_index(None, {"points": [{"x": 1}]}) == 1
+    assert ModelMatrixPlot.get_hover_index(None) is None
+    assert ModelMatrixPlot.get_hover_index({"points": [{"x": 1}]}) == 1
     ModelMatrixPlot.plot(dataframe, 2)
 
 

@@ -10,7 +10,7 @@ Interactive plots for [Slisemap](https://github.com/edahelsinki/slisemap) using 
 
 
 4. __[χiplot](https://github.com/edahelsinki/xiplot):__ As a plugin that adds loading and plotting of Slisemap objects.
-To use the plugin, just install the package in the same Python environment as [χiplot](https://github.com/edahelsinki/xiplot). __(This has not yet been implemented!)__
+To use the plugin, just install the package in the same Python environment as [χiplot](https://github.com/edahelsinki/xiplot). __(This is currently in an experimental state!)__
 
 ## Installation
 

@@ -2,7 +2,7 @@
 Functions for generating dynamic plots.
 """
 
-from typing import Any, Callable, Dict, Literal, Optional, get_args
+from typing import Any, Callable, Dict, Literal, Optional, Sequence, get_args
 
 from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL
 import plotly.express as px
@@ -45,6 +45,32 @@ def nested_get(obj: Any, *keys) -> Optional[Any]:
     return obj
 
 
+def first_not_none(
+    objects: Sequence[Optional[Any]],
+    map: Optional[Callable[[Any], Optional[Any]]] = None,
+    *args,
+) -> Optional[Any]:
+    """Find the first value that is not `None` (with optional mapping function).
+
+    Args:
+        objects: List of possible `None` objects.
+        map: Transformation function that might return `None`. Defaults to `None`.
+        *args: Forwarded to map.
+
+    Returns:
+        First (mapped) not-`None` object or `None` if all are `None`.
+    """
+    for obj in objects:
+        if obj is not None:
+            if map is None:
+                return obj
+            else:
+                obj = map(obj, *args)
+                if obj is not None:
+                    return obj
+    return None
+
+
 class DataCache(dict):
     """Class for holding datasets."""
 
@@ -75,13 +101,15 @@ class JitterSlider(html.Div):
         scale: float = 0.2,
         steps: int = 5,
         controls: str = "default",
+        id: Optional[Any] = None,
         **kwargs,
     ):
         values = np.linspace(0.0, scale, steps)
         marks = {0: "No jitter"}
         for v in values[1:]:
             marks[v] = f"{v:g}"
-        id = self.generate_id(data, controls)
+        if id is None:
+            id = self.generate_id(data, controls)
         slider = dcc.Slider(id=id, min=0.0, max=scale, marks=marks, value=0.0)
         super().__init__(children=[slider], **kwargs)
 
@@ -92,10 +120,16 @@ class JitterSlider(html.Div):
 
 class VariableDropdown(dcc.Dropdown):
     def __init__(
-        self, data: int, df: pd.DataFrame, controls: str = "default", **kwargs
+        self,
+        data: int,
+        df: pd.DataFrame,
+        controls: str = "default",
+        id: Optional[Any] = None,
+        **kwargs,
     ):
         vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
-        id = self.generate_id(data, controls)
+        if id is None:
+            id = self.generate_id(data, controls)
         super().__init__(vars, vars[0], id=id, clearable=False, **kwargs)
 
     @classmethod
@@ -105,13 +139,19 @@ class VariableDropdown(dcc.Dropdown):
 
 class ClusterDropdown(dcc.Dropdown):
     def __init__(
-        self, data: int, df: pd.DataFrame, controls: str = "default", **kwargs
+        self,
+        data: int,
+        df: pd.DataFrame,
+        controls: str = "default",
+        id: Optional[Any] = None,
+        **kwargs,
     ):
         clusters = ["No clusters"]
         while clusters[0] in df.columns:
             clusters[0] += "_"
         clusters.extend(c for c in df.columns if is_categorical_dtype(df[c]))
-        id = self.generate_id(data, controls)
+        if id is None:
+            id = self.generate_id(data, controls)
         super().__init__(clusters, clusters[0], id=id, clearable=False, **kwargs)
 
     @classmethod
@@ -120,8 +160,11 @@ class ClusterDropdown(dcc.Dropdown):
 
 
 class HistogramDropdown(dcc.Dropdown):
-    def __init__(self, data: int, controls: str = "default", **kwargs):
-        id = self.generate_id(data, controls)
+    def __init__(
+        self, data: int, controls: str = "default", id: Optional[Any] = None, **kwargs
+    ):
+        if id is None:
+            id = self.generate_id(data, controls)
         options = get_args(DistributionPlot.PLOT_TYPE_OPTIONS)
         super().__init__(options, options[0], id=id, clearable=False, **kwargs)
 
@@ -131,8 +174,11 @@ class HistogramDropdown(dcc.Dropdown):
 
 
 class ModelBarDropdown(dcc.Dropdown):
-    def __init__(self, data: int, controls: str = "default", **kwargs):
-        id = self.generate_id(data, controls)
+    def __init__(
+        self, data: int, controls: str = "default", id: Optional[Any] = None, **kwargs
+    ):
+        if id is None:
+            id = self.generate_id(data, controls)
         options = get_args(ModelBarPlot.GROUPING_OPTIONS)
         super().__init__(options, options[0], id=id, clearable=False, **kwargs)
 
@@ -160,7 +206,7 @@ class EmbeddingPlot(dcc.Graph):
         }
 
     @classmethod
-    def get_hover_index(cls, data: DataCache, hover_data: Any) -> Optional[int]:
+    def get_hover_index(cls, hover_data: Any) -> Optional[int]:
         return nested_get(hover_data, "points", 0, "customdata", 0)
 
     @classmethod
@@ -294,8 +340,9 @@ class ModelMatrixPlot(dcc.Graph):
         }
 
     @classmethod
-    def get_hover_index(cls, data: DataCache, hover_data: Any) -> Optional[int]:
-        return nested_get(hover_data, "points", 0, "x")
+    def get_hover_index(cls, hover_data: Any) -> Optional[int]:
+        hover = nested_get(hover_data, "points", 0, "x")
+        return int(hover) if hover is not None else None
 
     @classmethod
     def register_callbacks(cls, app: Dash, data: DataCache):
@@ -312,7 +359,7 @@ class ModelMatrixPlot(dcc.Graph):
     def plot(df: pd.DataFrame, hover: Optional[int] = None) -> Figure:
         zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
         bs = [c for c in df.columns if c[:2] == "B_"]
-        order_to_sorted = df[zs0].argsort()
+        order_to_sorted = df[zs0].to_numpy().argsort()
         sorted_to_string = [str(i) for i in order_to_sorted]
         B_mat = df[bs].to_numpy()[order_to_sorted, :].T
 
@@ -334,7 +381,7 @@ class ModelMatrixPlot(dcc.Graph):
         )
         fig.update_traces(hovertemplate="%{y} = %{z}<extra></extra>")
         if hover is not None:
-            fig.add_vline(x=np.where(order_to_sorted == hover)[0][0])
+            fig.add_vline(x=np.nonzero(order_to_sorted == hover)[0][0])
         return fig
 
 
@@ -532,18 +579,9 @@ class HoverData(dcc.Store):
         def hover_callback(inputs):
             tt = ctx.triggered_id["type"]
             if tt == "EmbeddingPlot":
-                for input in inputs:
-                    hover = EmbeddingPlot.get_hover_index(data, input)
-                    if hover is not None:
-                        return hover
+                return first_not_none(inputs, EmbeddingPlot.get_hover_index)
             elif tt == "ModelMatrixPlot":
-                for input in inputs:
-                    hover = ModelMatrixPlot.get_hover_index(data, input)
-                    if hover is not None:
-                        return int(hover)
+                return first_not_none(inputs, ModelMatrixPlot.get_hover_index)
             else:
-                for input in inputs:
-                    hover = nested_get(input, "points", 0, "customdata", 0)
-                    if hover is not None:
-                        return hover
+                return first_not_none(inputs, nested_get, "points", 0, "customdata", 0)
             return None

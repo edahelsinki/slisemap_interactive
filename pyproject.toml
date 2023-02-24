@@ -29,8 +29,15 @@ dependencies = [
 [project.urls]
 github = "https://github.com/edahelsinki/slisemap_interactive"
 
-[project.entry-points."xiplot.plugins.read"]
-load = "slisemap_interactive.hooks:load"
+[project.entry-points."xiplot.plugin.read"]
+load = "slisemap_interactive.xiplot:plugin_load"
+
+[project.entry-points."xiplot.plugin.plot"]
+plugin_embeddingplot = "slisemap_interactive.xiplot:plugin_embeddingplot"
+plugin_barplot = "slisemap_interactive.xiplot:plugin_barplot"
+plugin_matrixplot = "slisemap_interactive.xiplot:plugin_matrixplot"
+plugin_densityplot = "slisemap_interactive.xiplot:plugin_densityplot"
+plugin_histogramplot = "slisemap_interactive.xiplot:plugin_histogramplot"
 
 [project.scripts]
 slisemap_interactive = "slisemap_interactive.app:cli"

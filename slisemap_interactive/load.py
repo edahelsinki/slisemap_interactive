@@ -35,7 +35,7 @@ def subsample(Z: np.ndarray, n: int, cluster: bool = True) -> np.ndarray:
         lc = KMeans(nc, n_init=5).fit(Z).labels_
         lc[selected[nc:]] = -1
         for c in range(nc):
-            wc = np.where(lc == c)[0]
+            wc = np.nonzero(lc == c)[0]
             if wc.size > 0:
                 selected[c] = np.random.choice(wc, 1)
         return selected
