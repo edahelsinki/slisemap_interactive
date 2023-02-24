@@ -31,6 +31,11 @@ from slisemap_interactive.plots import (
 # TODO The height of the boxes are too large
 
 
+# These should probably be in the xiplot package, e.g., in "xiplot/plugin.py", so that they can be reused in many plugins.
+STORE_DATAFRAME_ID = "data_frame_store"
+STORE_HOVER_ID = "lastly_hovered_point_store"
+
+
 def delete_plot_button(index):
     # Why do I have to specify "plot-delete"?
     return delete_button("plot-delete", index)
@@ -88,11 +93,11 @@ class SlisemapEmbeddingPlot(APlot):
     def register_callbacks(cls, app, df_from_store, df_to_store):
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
-            Input("data_frame_store", "data"),
+            Input(STORE_DATAFRAME_ID, "data"),
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(cls.get_id(MATCH, "jitter"), "value"),
-            Input("lastly_hovered_point_store", "data"),
+            Input(STORE_HOVER_ID, "data"),
             prevent_initial_call=False,
         )
         def callback(df, variable, cluster, jitter, hover):
@@ -105,7 +110,7 @@ class SlisemapEmbeddingPlot(APlot):
             return EmbeddingPlot.plot(df, x, y, variable, jitter, hover)
 
         @app.callback(
-            Output("lastly_hovered_point_store", "data"),
+            Output(STORE_HOVER_ID, "data"),
             Input(cls.get_id(ALL), "hoverData"),
             prevent_initial_call=True,
         )
@@ -131,10 +136,10 @@ class SlisemapModelBarPlot(APlot):
     def register_callbacks(cls, app, df_from_store, df_to_store):
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
-            Input("data_frame_store", "data"),
+            Input(STORE_DATAFRAME_ID, "data"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(cls.get_id(MATCH, "grouping"), "value"),
-            Input("lastly_hovered_point_store", "data"),
+            Input(STORE_HOVER_ID, "data"),
             prevent_initial_call=False,
         )
         def callback(df, clusters, grouping, hover):
@@ -159,8 +164,8 @@ class SlisemapModelMatrixPlot(APlot):
     def register_callbacks(cls, app, df_from_store, df_to_store):
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
-            Input("data_frame_store", "data"),
-            Input("lastly_hovered_point_store", "data"),
+            Input(STORE_DATAFRAME_ID, "data"),
+            Input(STORE_HOVER_ID, "data"),
             prevent_initial_call=False,
         )
         def callback(df, hover):
@@ -168,7 +173,7 @@ class SlisemapModelMatrixPlot(APlot):
             return ModelMatrixPlot.plot(df, hover)
 
         @app.callback(
-            Output("lastly_hovered_point_store", "data"),
+            Output(STORE_HOVER_ID, "data"),
             Input(cls.get_id(ALL), "hoverData"),
             prevent_initial_call=True,
         )
@@ -189,10 +194,10 @@ class SlisemapDensityPlot(APlot):
     def register_callbacks(cls, app, df_from_store, df_to_store):
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
-            Input("data_frame_store", "data"),
+            Input(STORE_DATAFRAME_ID, "data"),
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
-            Input("lastly_hovered_point_store", "data"),
+            Input(STORE_HOVER_ID, "data"),
             prevent_initial_call=False,
         )
         def callback(df, variable, cluster, hover):
@@ -217,10 +222,10 @@ class SlisemapHistogramPlot(APlot):
     def register_callbacks(cls, app, df_from_store, df_to_store):
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
-            Input("data_frame_store", "data"),
+            Input(STORE_DATAFRAME_ID, "data"),
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
-            Input("lastly_hovered_point_store", "data"),
+            Input(STORE_HOVER_ID, "data"),
             prevent_initial_call=False,
         )
         def callback(df, variable, cluster, hover):
