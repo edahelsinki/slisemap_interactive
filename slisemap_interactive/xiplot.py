@@ -22,11 +22,9 @@ from slisemap_interactive.plots import (
     first_not_none,
 )
 
-# TODO some color legends have white text on a bright background
-# TODO the plots have a transparent background
+# TODO some color legends have white text on a bright background (`.ycbcoloraxistick text` in xiplot css)
 # TODO there should probably be a way for plugins to specify dcc.Store:s and general callbacks
 # TODO Some columns should probably be hidden from the normal plots
-# TODO what happens if we use Slisemap plots on non-Slisemap data
 # TODO We cannot export data+plots when a Slisemap object is loaded
 # TODO The height of the boxes are too large
 
@@ -34,6 +32,10 @@ from slisemap_interactive.plots import (
 # These should probably be in the xiplot package, e.g., in "xiplot/plugin.py", so that they can be reused in many plugins.
 STORE_DATAFRAME_ID = "data_frame_store"
 STORE_HOVER_ID = "lastly_hovered_point_store"
+
+
+# Xiplot has a slightly different layout than slisemap_interactive (mainly different theme)
+DEFAULT_FIG_LAYOUT = dict(margin=dict(l=10, r=10, t=30, b=10), uirevision=True)
 
 
 def delete_plot_button(index):
@@ -84,6 +86,32 @@ class APlot(Plot):
         pass
 
 
+def placeholder_text_figure(text: str) -> Dict[str, Any]:
+    """Display a placeholder text instead of a graph.
+
+    Args:
+        text: Placeholder text.
+
+    Returns:
+        Dash figure (to place into a `Output(dcc.Graph.id, "figure")`)
+    """
+    return {
+        "layout": {
+            "xaxis": {"visible": False},
+            "yaxis": {"visible": False},
+            "annotations": [
+                {
+                    "text": text,
+                    "xref": "paper",
+                    "yref": "paper",
+                    "showarrow": False,
+                    "font": {"size": 28},
+                }
+            ],
+        }
+    }
+
+
 class SlisemapEmbeddingPlot(APlot):
     @classmethod
     def name(cls) -> str:
@@ -103,11 +131,18 @@ class SlisemapEmbeddingPlot(APlot):
         def callback(df, variable, cluster, jitter, hover):
             df = df_from_store(df)
             dimensions = filter(lambda c: c[:2] == "Z_", df.columns)
-            x = next(dimensions)
-            y = next(dimensions)
+            try:
+                x = next(dimensions)
+                y = next(dimensions)
+            except StopIteration:
+                return placeholder_text_figure("Slisemap embedding not found")
             if cluster in df.columns:
                 variable = cluster
-            return EmbeddingPlot.plot(df, x, y, variable, jitter, hover)
+            if variable not in df.columns:
+                return placeholder_text_figure(f"{variable} not found")
+            return EmbeddingPlot.plot(
+                df, x, y, variable, jitter, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            )
 
         @app.callback(
             Output(STORE_HOVER_ID, "data"),
@@ -144,7 +179,12 @@ class SlisemapModelBarPlot(APlot):
         )
         def callback(df, clusters, grouping, hover):
             df = df_from_store(df)
-            return ModelBarPlot.plot(df, clusters, grouping, hover)
+            bs = [c for c in df.columns if c[:2] == "B_"]
+            if len(bs) == 0:
+                return placeholder_text_figure("Slisemap local models not found")
+            return ModelBarPlot.plot(
+                df, bs, clusters, grouping, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            )
 
     @classmethod
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
@@ -170,7 +210,16 @@ class SlisemapModelMatrixPlot(APlot):
         )
         def callback(df, hover):
             df = df_from_store(df)
-            return ModelMatrixPlot.plot(df, hover)
+            try:
+                zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
+            except StopIteration:
+                return placeholder_text_figure("Slisemap embedding not found")
+            bs = [c for c in df.columns if c[:2] == "B_"]
+            if len(bs) == 0:
+                return placeholder_text_figure("Slisemap local models not found")
+            return ModelMatrixPlot.plot(
+                df, bs, zs0, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            )
 
         @app.callback(
             Output(STORE_HOVER_ID, "data"),
@@ -202,7 +251,11 @@ class SlisemapDensityPlot(APlot):
         )
         def callback(df, variable, cluster, hover):
             df = df_from_store(df)
-            return DistributionPlot.plot(df, variable, "Density", cluster, hover)
+            if variable not in df.columns:
+                return placeholder_text_figure(f"{variable} not found")
+            return DistributionPlot.plot(
+                df, variable, "Density", cluster, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            )
 
     @classmethod
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
@@ -230,7 +283,11 @@ class SlisemapHistogramPlot(APlot):
         )
         def callback(df, variable, cluster, hover):
             df = df_from_store(df)
-            return DistributionPlot.plot(df, variable, "Histogram", cluster, hover)
+            if variable not in df.columns:
+                return placeholder_text_figure(f"{variable} not found")
+            return DistributionPlot.plot(
+                df, variable, "Histogram", cluster, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            )
 
     @classmethod
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:

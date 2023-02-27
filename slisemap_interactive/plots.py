@@ -12,6 +12,12 @@ import pandas as pd
 import numpy as np
 from pandas.api.types import is_categorical_dtype
 
+DEFAULT_FIG_LAYOUT = dict(
+    margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
+    template="plotly_white",
+    uirevision=True,
+)
+
 
 def try_twice(fn: Callable[[], Any]) -> Any:
     """Call a function and if it throws an exception retry it once more.
@@ -237,6 +243,7 @@ class EmbeddingPlot(dcc.Graph):
         jitter: float = 0.0,
         hover: Optional[int] = None,
         seed: int = 42,
+        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
         def dfmod(var):
             df2 = pd.DataFrame(
@@ -311,13 +318,7 @@ class EmbeddingPlot(dcc.Graph):
             )
             fig.add_traces(trace.data)
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-            xaxis_title=None,
-            yaxis_title=None,
-            template="plotly_white",
-            uirevision=True,
-        )
+        fig.update_layout(**fig_layout, xaxis_title=None, yaxis_title=None)
         return fig
 
 
@@ -353,15 +354,24 @@ class ModelMatrixPlot(dcc.Graph):
         def callback(hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
-            return cls.plot(df, hover)
+            zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
+            bs = [c for c in df.columns if c[:2] == "B_"]
+            return cls.plot(df, bs, zs0, hover)
 
     @staticmethod
-    def plot(df: pd.DataFrame, hover: Optional[int] = None) -> Figure:
-        zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
-        bs = [c for c in df.columns if c[:2] == "B_"]
-        order_to_sorted = df[zs0].to_numpy().argsort()
+    def plot(
+        df: pd.DataFrame,
+        coefficients: Sequence[str],
+        sorting: Optional[str],
+        hover: Optional[int] = None,
+        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+    ) -> Figure:
+        if sorting is None:
+            order_to_sorted = np.arange(df.shape[0])
+        else:
+            order_to_sorted = df[sorting].to_numpy().argsort()
         sorted_to_string = [str(i) for i in order_to_sorted]
-        B_mat = df[bs].to_numpy()[order_to_sorted, :].T
+        B_mat = df[coefficients].to_numpy()[order_to_sorted, :].T
 
         fig = px.imshow(
             B_mat,
@@ -370,15 +380,11 @@ class ModelMatrixPlot(dcc.Graph):
             labels=dict(color="Coefficient", x="Data items sorted left to right"),
             title="Local models",
             color_continuous_scale="RdBu",
-            y=bs,
+            y=coefficients,
             x=sorted_to_string,
         )
         fig.update_xaxes(showticklabels=False)
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-            template="plotly_white",
-            uirevision=True,
-        )
+        fig.update_layout(**fig_layout)
         fig.update_traces(hovertemplate="%{y} = %{z}<extra></extra>")
         if hover is not None:
             fig.add_vline(x=np.nonzero(order_to_sorted == hover)[0][0])
@@ -411,18 +417,22 @@ class ModelBarPlot(dcc.Graph):
         def callback(cluster, grouping, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
-            return try_twice(lambda: cls.plot(df, cluster, grouping, hover))
+            coefficients = [c for c in df.columns if c[:2] == "B_"]
+            return try_twice(
+                lambda: cls.plot(df, coefficients, cluster, grouping, hover)
+            )
 
     GROUPING_OPTIONS = Literal["Variables", "Clusters"]
 
     @staticmethod
     def plot(
         df: pd.DataFrame,
+        coefficients: Sequence[str],
         cluster: Optional[str] = None,
         grouping: GROUPING_OPTIONS = "Variables",
         hover: Optional[int] = None,
+        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
-        coefficients = [c for c in df.columns if c[:2] == "B_"]
         coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
 
         if hover is not None:
@@ -461,12 +471,7 @@ class ModelBarPlot(dcc.Graph):
             )
             fig.update_layout(showlegend=False)
         fig.update_xaxes(title=None)
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-            yaxis_title="Coefficient",
-            template="plotly_white",
-            uirevision=True,
-        )
+        fig.update_layout(**fig_layout, yaxis_title="Coefficient")
         fig.update_traces(hovertemplate="%{x} = %{y}<extra></extra>")
         return fig
 
@@ -508,6 +513,7 @@ class DistributionPlot(dcc.Graph):
         plot_type: PLOT_TYPE_OPTIONS = "Histogram",
         cluster: Optional[str] = None,
         hover: Optional[int] = None,
+        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
         if cluster in df.columns and is_categorical_dtype(df[cluster]):
             if plot_type == "Histogram":
@@ -546,13 +552,7 @@ class DistributionPlot(dcc.Graph):
                 fig.update_layout(showlegend=False, title=f"{variable} density plot")
         if hover is not None:
             fig.add_vline(x=df[variable].iloc[hover])
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-            xaxis_title=None,
-            yaxis_title=None,
-            template="plotly_white",
-            uirevision=True,
-        )
+        fig.update_layout(**fig_layout, xaxis_title=None, yaxis_title=None)
         return fig
 
 
