@@ -33,11 +33,11 @@ github = "https://github.com/edahelsinki/slisemap_interactive"
 load = "slisemap_interactive.xiplot:plugin_load"
 
 [project.entry-points."xiplot.plugin.plot"]
-plugin_embeddingplot = "slisemap_interactive.xiplot:plugin_embeddingplot"
-plugin_barplot = "slisemap_interactive.xiplot:plugin_barplot"
-plugin_matrixplot = "slisemap_interactive.xiplot:plugin_matrixplot"
-plugin_densityplot = "slisemap_interactive.xiplot:plugin_densityplot"
-plugin_histogramplot = "slisemap_interactive.xiplot:plugin_histogramplot"
+plugin_embeddingplot = "slisemap_interactive.xiplot:SlisemapEmbeddingPlot"
+plugin_barplot = "slisemap_interactive.xiplot:SlisemapModelBarPlot"
+plugin_matrixplot = "slisemap_interactive.xiplot:SlisemapModelMatrixPlot"
+plugin_densityplot = "slisemap_interactive.xiplot:SlisemapDensityPlot"
+plugin_histogramplot = "slisemap_interactive.xiplot:SlisemapHistogramPlot"
 
 [project.scripts]
 slisemap_interactive = "slisemap_interactive.app:cli"
