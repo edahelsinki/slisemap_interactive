@@ -48,30 +48,47 @@ def test_first_not_none():
 
 def test_embedding(dataframe):
     graph = EmbeddingPlot(0)
+    ctrl1 = VariableDropdown(dataframe, id="")
+    ctrl2 = JitterSlider(id="")
+    ctrl3 = ClusterDropdown(dataframe, id="")
     assert EmbeddingPlot.get_hover_index(None) is None
     assert EmbeddingPlot.get_hover_index({"points": [{"customdata": [1]}]}) == 1
     EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Y_0", 0.2, 2)
     EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", 0.2, 2)
-    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", 0.2, 2)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", 0.0, None)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", 0.0, 2)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", 0.2, None)
 
 
 def test_matrix(dataframe):
     graph = ModelMatrixPlot(0)
     assert ModelMatrixPlot.get_hover_index(None) is None
     assert ModelMatrixPlot.get_hover_index({"points": [{"x": 1}]}) == 1
-    ModelMatrixPlot.plot(dataframe, 2)
+    ModelMatrixPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, 2)
+    ModelMatrixPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, None)
+    ModelMatrixPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "Z_0", 3)
+    ModelMatrixPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "Z_0", None)
 
 
 def test_bar(dataframe):
     graph = ModelBarPlot(0)
-    ModelBarPlot.plot(dataframe, "No Cluster", "Variables", 2)
-    ModelBarPlot.plot(dataframe, "No Cluster", "Variables", None)
-    ModelBarPlot.plot(dataframe, "cls", "Variables", None)
-    ModelBarPlot.plot(dataframe, "cls", "Clusters", None)
+    ctrl1 = ModelBarDropdown(id="")
+    ctrl2 = ClusterDropdown(dataframe, id="")
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, "Variables", 2)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, "Variables", None)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "No Cluster", "Variables", 2)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "No Cluster", "Variables", None)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "cls", "Variables", None)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "cls", "Clusters", None)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "cls", "Variables", 3)
+    ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "cls", "Clusters", 3)
 
 
 def test_dist(dataframe):
     graph = DistributionPlot(0)
+    ctrl1 = VariableDropdown(dataframe, id="")
+    ctrl2 = HistogramDropdown(id="")
+    ctrl3 = ClusterDropdown(dataframe, id="")
     DistributionPlot.plot(dataframe, "Y_0", "Histogram", None, 2)
     DistributionPlot.plot(dataframe, "Y_0", "Histogram", "cls", 2)
     DistributionPlot.plot(dataframe, "Y_0", "Density", None, 2)
