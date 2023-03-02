@@ -9,6 +9,7 @@ from xiplot.plugin import (
     STORE_HOVERED_ID,
     STORE_DATAFRAME_ID,
     PdfButton,
+    PlotData,
 )
 import pandas as pd
 from dash import html, dcc, Output, Input, MATCH, ALL
@@ -88,13 +89,29 @@ class SlisemapEmbeddingPlot(APlot):
         def hover_callback(inputs):
             return first_not_none(inputs, EmbeddingPlot.get_hover_index)
 
+        PlotData.register_callback(
+            cls.name(),
+            app,
+            dict(
+                variable=Input(cls.get_id(MATCH, "variable"), "value"),
+                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
+                jitter=Input(cls.get_id(MATCH, "jitter"), "value"),
+            ),
+        )
+
     @classmethod
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(id=cls.get_id(index), clear_on_unhover=True),
-            VariableDropdown(df, id=cls.get_id(index, "variable")),
-            ClusterDropdown(df, id=cls.get_id(index, "cluster")),
-            JitterSlider(id=cls.get_id(index, "jitter")),
+            VariableDropdown(
+                df, id=cls.get_id(index, "variable"), value=config.get("variable", None)
+            ),
+            ClusterDropdown(
+                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
+            ),
+            JitterSlider(
+                id=cls.get_id(index, "jitter"), value=config.get("jitter", 0.0)
+            ),
         ]
 
 
@@ -124,12 +141,25 @@ class SlisemapModelBarPlot(APlot):
                 df, bs, clusters, grouping, hover, fig_layout=DEFAULT_FIG_LAYOUT
             )
 
+        PlotData.register_callback(
+            cls.name(),
+            app,
+            dict(
+                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
+                grouping=Input(cls.get_id(MATCH, "grouping"), "value"),
+            ),
+        )
+
     @classmethod
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(cls.get_id(index)),
-            ClusterDropdown(0, df=df, id=cls.get_id(index, "cluster")),
-            ModelBarDropdown(0, id=cls.get_id(index, "grouping")),
+            ClusterDropdown(
+                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
+            ),
+            ModelBarDropdown(
+                id=cls.get_id(index, "grouping"), value=config.get("grouping", None)
+            ),
         ]
 
 
@@ -199,12 +229,25 @@ class SlisemapDensityPlot(APlot):
                 df, variable, "Density", cluster, hover, fig_layout=DEFAULT_FIG_LAYOUT
             )
 
+        PlotData.register_callback(
+            cls.name(),
+            app,
+            dict(
+                variable=Input(cls.get_id(MATCH, "variable"), "value"),
+                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
+            ),
+        )
+
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
+    def create_layout(cls, index, df, columns, config=dict()):
         return [
             dcc.Graph(cls.get_id(index)),
-            VariableDropdown(df, id=cls.get_id(index, "variable")),
-            ClusterDropdown(df, id=cls.get_id(index, "cluster")),
+            VariableDropdown(
+                df, id=cls.get_id(index, "variable"), value=config.get("variable", None)
+            ),
+            ClusterDropdown(
+                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
+            ),
         ]
 
 
@@ -233,10 +276,23 @@ class SlisemapHistogramPlot(APlot):
                 df, variable, "Histogram", cluster, hover, fig_layout=DEFAULT_FIG_LAYOUT
             )
 
+        PlotData.register_callback(
+            cls.name(),
+            app,
+            dict(
+                variable=Input(cls.get_id(MATCH, "variable"), "value"),
+                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
+            ),
+        )
+
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
+    def create_layout(cls, index, df, columns, config=dict()):
         return [
             dcc.Graph(cls.get_id(index)),
-            VariableDropdown(df, id=cls.get_id(index, "variable")),
-            ClusterDropdown(df, id=cls.get_id(index, "cluster")),
+            VariableDropdown(
+                df, id=cls.get_id(index, "variable"), value=config.get("variable", None)
+            ),
+            ClusterDropdown(
+                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
+            ),
         ]
