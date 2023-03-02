@@ -103,11 +103,12 @@ class DataCache(dict):
 class JitterSlider(html.Div):
     def __init__(
         self,
-        data: int,
+        data: Optional[int] = None,
         scale: float = 0.2,
         steps: int = 5,
         controls: str = "default",
         id: Optional[Any] = None,
+        value: float = 0.0,
         **kwargs,
     ):
         values = np.linspace(0.0, scale, steps)
@@ -115,8 +116,9 @@ class JitterSlider(html.Div):
         for v in values[1:]:
             marks[v] = f"{v:g}"
         if id is None:
+            assert data is not None and controls is not None
             id = self.generate_id(data, controls)
-        slider = dcc.Slider(id=id, min=0.0, max=scale, marks=marks, value=0.0)
+        slider = dcc.Slider(id=id, min=0.0, max=scale, marks=marks, value=value)
         super().__init__(children=[slider], **kwargs)
 
     @classmethod
@@ -127,16 +129,20 @@ class JitterSlider(html.Div):
 class VariableDropdown(dcc.Dropdown):
     def __init__(
         self,
-        data: int,
         df: pd.DataFrame,
+        data: Optional[int] = None,
         controls: str = "default",
         id: Optional[Any] = None,
+        value: Optional[str] = None,
         **kwargs,
     ):
         vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
+        if value is None or value not in vars:
+            value = vars[0]
         if id is None:
+            assert data is not None and controls is not None
             id = self.generate_id(data, controls)
-        super().__init__(vars, vars[0], id=id, clearable=False, **kwargs)
+        super().__init__(vars, value, id=id, clearable=False, **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -146,19 +152,23 @@ class VariableDropdown(dcc.Dropdown):
 class ClusterDropdown(dcc.Dropdown):
     def __init__(
         self,
-        data: int,
         df: pd.DataFrame,
+        data: Optional[int] = None,
         controls: str = "default",
         id: Optional[Any] = None,
+        value: Optional[str] = None,
         **kwargs,
     ):
         clusters = ["No clusters"]
         while clusters[0] in df.columns:
             clusters[0] += "_"
         clusters.extend(c for c in df.columns if is_categorical_dtype(df[c]))
+        if value is None or value not in clusters:
+            value = clusters[0]
         if id is None:
+            assert data is not None and controls is not None
             id = self.generate_id(data, controls)
-        super().__init__(clusters, clusters[0], id=id, clearable=False, **kwargs)
+        super().__init__(clusters, value, id=id, clearable=False, **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -167,12 +177,20 @@ class ClusterDropdown(dcc.Dropdown):
 
 class HistogramDropdown(dcc.Dropdown):
     def __init__(
-        self, data: int, controls: str = "default", id: Optional[Any] = None, **kwargs
+        self,
+        data: Optional[int] = None,
+        controls: str = "default",
+        id: Optional[Any] = None,
+        value: Optional[str] = None,
+        **kwargs,
     ):
         if id is None:
+            assert data is not None and controls is not None
             id = self.generate_id(data, controls)
         options = get_args(DistributionPlot.PLOT_TYPE_OPTIONS)
-        super().__init__(options, options[0], id=id, clearable=False, **kwargs)
+        if value is None or value not in options:
+            value = options[0]
+        super().__init__(options, value, id=id, clearable=False, **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -181,12 +199,20 @@ class HistogramDropdown(dcc.Dropdown):
 
 class ModelBarDropdown(dcc.Dropdown):
     def __init__(
-        self, data: int, controls: str = "default", id: Optional[Any] = None, **kwargs
+        self,
+        data: Optional[int] = None,
+        controls: str = "default",
+        id: Optional[Any] = None,
+        value: Optional[str] = None,
+        **kwargs,
     ):
         if id is None:
+            assert data is not None and controls is not None
             id = self.generate_id(data, controls)
         options = get_args(ModelBarPlot.GROUPING_OPTIONS)
-        super().__init__(options, options[0], id=id, clearable=False, **kwargs)
+        if value is None or value not in options:
+            value = options[0]
+        super().__init__(options, value, id=id, clearable=False, **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -362,14 +388,14 @@ class ModelMatrixPlot(dcc.Graph):
     def plot(
         df: pd.DataFrame,
         coefficients: Sequence[str],
-        sorting: Optional[str],
+        sort_by: Optional[str] = None,
         hover: Optional[int] = None,
         fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
-        if sorting is None:
+        if sort_by is None:
             order_to_sorted = np.arange(df.shape[0])
         else:
-            order_to_sorted = df[sorting].to_numpy().argsort()
+            order_to_sorted = df[sort_by].to_numpy().argsort()
         sorted_to_string = [str(i) for i in order_to_sorted]
         B_mat = df[coefficients].to_numpy()[order_to_sorted, :].T
 
@@ -443,7 +469,11 @@ class ModelBarPlot(dcc.Graph):
                 title=f"Local model for item {df.index[hover]}",
             )
             fig.update_layout(showlegend=False)
-        elif cluster in df.columns and is_categorical_dtype(df[cluster]):
+        elif (
+            cluster is not None
+            and cluster in df.columns
+            and is_categorical_dtype(df[cluster])
+        ):
             if grouping == "Clusters":
                 fig = px.bar(
                     df.groupby([cluster])[coefficients].mean().T,

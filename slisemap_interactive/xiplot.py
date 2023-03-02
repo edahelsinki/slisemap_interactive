@@ -1,8 +1,7 @@
 """
     Hooks for connecting to xiplot (using entry points in 'pyproject.toml').
 """
-from abc import abstractclassmethod
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 from xiplot.plugin import (
     APlot,
@@ -11,7 +10,7 @@ from xiplot.plugin import (
     STORE_DATAFRAME_ID,
     PdfButton,
 )
-from pandas import DataFrame
+import pandas as pd
 from dash import html, dcc, Output, Input, MATCH, ALL
 
 from slisemap_interactive.load import slisemap_to_dataframe
@@ -37,7 +36,7 @@ DEFAULT_FIG_LAYOUT = dict(
 )
 
 
-def plugin_load() -> Dict[str, Callable[[Any], DataFrame]]:
+def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
     """Xiplot plugin for reading Slisemap files.
 
     Returns:
@@ -93,9 +92,9 @@ class SlisemapEmbeddingPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(id=cls.get_id(index), clear_on_unhover=True),
-            VariableDropdown(0, df=df, id=cls.get_id(index, "variable")),
-            ClusterDropdown(0, df=df, id=cls.get_id(index, "cluster")),
-            JitterSlider(0, id=cls.get_id(index, "jitter")),
+            VariableDropdown(df, id=cls.get_id(index, "variable")),
+            ClusterDropdown(df, id=cls.get_id(index, "cluster")),
+            JitterSlider(id=cls.get_id(index, "jitter")),
         ]
 
 
@@ -204,8 +203,8 @@ class SlisemapDensityPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(cls.get_id(index)),
-            VariableDropdown(0, df=df, id=cls.get_id(index, "variable")),
-            ClusterDropdown(0, df=df, id=cls.get_id(index, "cluster")),
+            VariableDropdown(df, id=cls.get_id(index, "variable")),
+            ClusterDropdown(df, id=cls.get_id(index, "cluster")),
         ]
 
 
@@ -238,6 +237,6 @@ class SlisemapHistogramPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(cls.get_id(index)),
-            VariableDropdown(0, df=df, id=cls.get_id(index, "variable")),
-            ClusterDropdown(0, df=df, id=cls.get_id(index, "cluster")),
+            VariableDropdown(df, id=cls.get_id(index, "variable")),
+            ClusterDropdown(df, id=cls.get_id(index, "cluster")),
         ]

@@ -78,8 +78,8 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
     hover_index = HoverData(data_key)
     topbar = [
         html.H1(children="Interactive Slisemap", style=style_header),
-        VariableDropdown(data_key, df, style=style_controls),
-        ClusterDropdown(data_key, df, style=style_controls),
+        VariableDropdown(df, data_key, style=style_controls),
+        ClusterDropdown(df, data_key, style=style_controls),
         JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
         ModelBarDropdown(data_key, style=style_controls),
         HistogramDropdown(data_key, style=style_controls),
