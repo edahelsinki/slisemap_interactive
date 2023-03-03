@@ -47,32 +47,36 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
     # Styles
     style_topbar = {
         "display": "flex",
-        "flex-direction": "row",
-        "align-items": "center",
-        "justify-content": "right",
-        "flex-wrap": "wrap",
+        "flexDirection": "row",
+        "alignItems": "center",
+        "justifyContent": "right",
+        "flexWrap": "wrap",
         "gap": "0px",
-        "padding": "0.2em",
-        "border": "thin solid lightgrey",
-        "margin-bottom": "0.4em",
+        "padding": "0.4rem",
+        "background": "#FDF3FF",
+        "borderRadius": "4px",
+        "border": "thin solid #D0D0DF",
+        "boxShadow": "0px 2px 3px 0px hsla(0, 0%, 0%, 0.14)",
+        "marginBottom": "0.5rem",
     }
     style_header = {
-        "flex-grow": "1",
-        "flex-shrink": "1",
-        "margin-top": "0px",
-        "margin-bottom": "0px",
+        "flex": "1 1",
+        "paddingLeft": "0.3rem",
+        "paddingRight": "0.3rem",
+        "marginTop": "0px",
+        "marginBottom": "0px",
     }
     style_controls = {"width": "14em"}
     style_plot_area = {
         "display": "flex",
-        "flex-direction": "row",
-        "align-items": "stretch",
-        "justify-content": "center",
-        "align-content": "center",
-        "flex-wrap": "wrap",
+        "flexDirection": "row",
+        "alignItems": "stretch",
+        "justifyContent": "center",
+        "alignContent": "center",
+        "flexWrap": "wrap",
         "gap": "0px",
     }
-    style_plot = {"min-width": "40em", "flex": "1 1 50%"}
+    style_plot = {"minWidth": "35rem", "flex": "1 1 50%"}
 
     # Elements
     hover_index = HoverData(data_key)
