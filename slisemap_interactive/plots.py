@@ -79,6 +79,17 @@ def first_not_none(
     return None
 
 
+def is_cluster_or_categorical(df: pd.DataFrame, column: str) -> bool:
+    col = df.get(column, None)
+    if col is None:
+        return False
+    if is_categorical_dtype(col):
+        return True
+    if "cluster" in column.lower():
+        return True
+    return False
+
+
 class DataCache(dict):
     """Class for holding datasets."""
 
@@ -164,7 +175,7 @@ class ClusterDropdown(dcc.Dropdown):
         clusters = ["No clusters"]
         while clusters[0] in df.columns:
             clusters[0] += "_"
-        clusters.extend(c for c in df.columns if is_categorical_dtype(df[c]))
+        clusters.extend(c for c in df.columns if is_cluster_or_categorical(df, c))
         if value is None or value not in clusters:
             value = clusters[0]
         if id is None:
@@ -284,7 +295,7 @@ class EmbeddingPlot(dcc.Graph):
             return df2
 
         fig = None
-        if is_categorical_dtype(df[variable]):
+        if is_cluster_or_categorical(df, variable):
             df2 = dfmod(variable)
             fig = px.scatter(
                 df2,
@@ -472,11 +483,7 @@ class ModelBarPlot(dcc.Graph):
                 title=f"Local model for item {df.get('item', df.index)[hover]}",
             )
             fig.update_layout(showlegend=False)
-        elif (
-            cluster is not None
-            and cluster in df.columns
-            and is_categorical_dtype(df[cluster])
-        ):
+        elif is_cluster_or_categorical(df, cluster):
             if grouping == "Clusters":
                 fig = px.bar(
                     df.groupby([cluster])[coefficients].mean().T,
@@ -548,7 +555,7 @@ class DistributionPlot(dcc.Graph):
         hover: Optional[int] = None,
         fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
-        if cluster in df.columns and is_categorical_dtype(df[cluster]):
+        if is_cluster_or_categorical(df, cluster):
             if plot_type == "Histogram":
                 fig = px.histogram(
                     df,
