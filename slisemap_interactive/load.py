@@ -4,7 +4,7 @@
 
 import gc
 from os import PathLike
-from typing import Union
+from typing import Optional, Union
 import warnings
 
 import pandas as pd
@@ -13,47 +13,51 @@ from slisemap import Slisemap
 from sklearn.cluster import KMeans
 
 
-def subsample(Z: np.ndarray, n: int, cluster: bool = True) -> np.ndarray:
+def subsample(Z: np.ndarray, n: int, clusters: Optional[int] = None) -> np.ndarray:
     """Get indices for subsampling.
     Optionally uses k-means clustering to ensure inclusion of rarer data items.
 
     Args:
         Z: Embedding matrix.
-        n: Size of the suvset.
-        cluster: Use k-means. Defaults to True.
+        n: Size of the subset.
+        clusters: Use k-means clustering to find a part of the subset. Defaults to `min(n//2, 100)`.
 
     Returns:
-        A list of indices.
+        An array of indices.
     """
     if n >= Z.shape[0]:
-        return np.arange(n)
-    elif not cluster:
+        return np.arange(Z.shape[0])
+    if clusters is None:
+        clusters = min(n // 2, 100)
+    if clusters < 1:
         return np.random.choice(Z.shape[0], n, replace=False)
     else:
-        selected = np.random.choice(Z.shape[0], n, replace=False)
-        nc = min(n // 10, 100)
-        lc = KMeans(nc, n_init=5).fit(Z).labels_
-        lc[selected[nc:]] = -1
-        for c in range(nc):
-            wc = np.nonzero(lc == c)[0]
-            if wc.size > 0:
-                selected[c] = np.random.choice(wc, 1)
-        return selected
+        indices = np.arange(Z.shape[0])
+        dist = KMeans(clusters, n_init=5).fit_transform(Z)
+        for i in range(clusters):
+            item = np.argmin(dist[:, i])
+            indices[[item, i]] = indices[[i, item]]
+        for i in range(clusters, n):
+            j = np.random.choice(Z.shape[0] - i, 1)[0] + i
+            indices[[i, j]] = indices[[j, i]]
+        return indices[:n]
 
 
 def slisemap_to_dataframe(
     path: Union[str, PathLike, Slisemap],
-    losses: bool = True,
+    losses: Union[bool, int] = True,
     clusters: int = 9,
     max_n: int = -1,
+    index: bool = True,
 ) -> pd.DataFrame:
     """Convert a `Slisemap` object to a `pandas.DataFrame`.
 
     Args:
         path: Slisemap object or path to a saved slisemap object.
-        losses: Return the loss matrix. Default to True.
+        losses: Return the loss matrix. Can also be a number specifying the (approximate) maximum number of `L_*` columns. Default to True.
         clusters: Return cluster indices (if greater than one). Defaults to 9.
         max_n: maximum number of data items in the dataframe (subsampling is recommended if `n > 5000` and `losses=True`). Defaults to -1.
+        index: Return row names as the index (True) or as an "item" column (False). Defaults to True.
 
     Returns:
         A dataframe containing data from the Slisemap object (columns: "X_*", "Y_*", "Z_*", "B_*", "Local loss", ("L_*", "Clusters *")).
@@ -63,8 +67,9 @@ def slisemap_to_dataframe(
     else:
         sm = Slisemap.load(path, "cpu")
 
+    Z = sm.get_Z(rotate=True)
     if max_n > 0 and sm.n > max_n:
-        ss = subsample(sm.get_Z(), max_n)
+        ss = subsample(Z, max_n)
     else:
         ss = ...
 
@@ -81,25 +86,33 @@ def slisemap_to_dataframe(
     dimensions = sm.metadata.get_dimensions()
     dimensions = preface_names(dimensions, "Z_")
     rows = sm.metadata.get_rows(fallback=False)
+    has_index = True
     if ss is not ...:
         rows = ss if rows is None else np.asarray(rows)[ss]
     elif rows is None:
+        has_index = False
         rows = range(sm.n)
 
     dfs = [
         pd.DataFrame.from_records(sm.metadata.unscale_X()[ss, :], columns=variables),
         pd.DataFrame.from_records(sm.metadata.unscale_Y()[ss, :], columns=targets),
-        pd.DataFrame.from_records(sm.get_Z(rotate=True)[ss, :], columns=dimensions),
+        pd.DataFrame.from_records(Z[ss, :], columns=dimensions),
         pd.DataFrame.from_records(sm.get_B()[ss, :], columns=coefficients),
     ]
+    del variables, targets, dimensions, coefficients
     gc.collect(1)
 
     L = sm.get_L(X=sm._X[ss, :], Y=sm._Y[ss, :])[ss, :]
     dfs.append(pd.DataFrame({"Local loss": L.diagonal()}))
-    if losses:
+    if not isinstance(losses, bool) and losses > 0 and losses * 2 < Z.shape[0]:
+        sel = subsample(Z, losses)
+        sel.sort()
+        Ln = [f"LT_{rows[i]}" for i in sel]
+        dfs.append(pd.DataFrame.from_records(L.T[:, sel], columns=Ln))
+    elif losses:
         Ln = [f"L_{i}" for i in rows]
         dfs.append(pd.DataFrame.from_records(L, columns=Ln))
-    del L
+    del L, Z
     gc.collect(1)
 
     if clusters > 1:
@@ -116,7 +129,39 @@ def slisemap_to_dataframe(
     del sm
     gc.collect(1)
     df = pd.concat(dfs, axis=1, copy=False)
-    df.index = rows
+    if has_index:
+        if index:
+            df.index = rows
+        else:
+            df["item"] = rows
     del dfs
     gc.collect(1)
     return df
+
+
+def get_L_column(df: pd.DataFrame, index: Optional[int] = None) -> Optional[np.ndarray]:
+    """Get a column of the L matrix from a `slisemap_to_dataframe`.
+    If `df` only contains a partial L matrix, then some values will be `np.nan`.
+    If `df` does not contain L, then `None` is returned.
+
+    Args:
+        df: Dataframe from `slisemap_to_dataframe`.
+        index: Column index. Defaults to None.
+
+    Returns:
+        Loss column.
+    """
+    rows = df.get("item", df.index)
+    l = df.get(f"L_{rows[index]}", None)
+    if l is not None:
+        return l
+    lts = {k: i for i, k in enumerate(df) if k[:3] == "LT_"}
+    if len(lts) == 0:
+        return None
+    loss = np.repeat(np.nan, df.shape[0])
+    loss[index] = df["Local loss"][index]
+    for i, row in enumerate(rows):
+        l = lts.get(f"LT_{row}", -1)
+        if l >= 0:
+            loss[i] = df.iloc[index, l]
+    return loss

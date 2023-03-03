@@ -12,6 +12,8 @@ import pandas as pd
 import numpy as np
 from pandas.api.types import is_categorical_dtype
 
+from slisemap_interactive.load import get_L_column
+
 DEFAULT_FIG_LAYOUT = dict(
     margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
     template="plotly_white",
@@ -299,21 +301,22 @@ class EmbeddingPlot(dcc.Graph):
         else:
             ll = variable == "Local loss"
         if fig is None and ll and hover is not None:
-            losses = [c for c in df.columns if c[:2] == "L_"]
-            if len(losses) == df.shape[0]:
+            losses = get_L_column(df, hover)
+            if losses is not None:
+                loss_cols = [c for c in df.columns if c[:2] == "L_" or c[:3] == "LT_"]
                 lrange = (
-                    df[losses].abs().min().quantile(0.05) * 0.9,
-                    df[losses].abs().max().quantile(0.95) * 1.1,
+                    df[loss_cols].abs().min().quantile(0.05) * 0.9,
+                    df[loss_cols].abs().max().quantile(0.95) * 1.1,
                 )
-                variable = losses[hover]
                 df2 = dfmod(variable)
+                df2[variable] = losses
                 fig = px.scatter(
                     df2,
                     x=x,
                     y=y,
                     color=variable,
-                    title=f"Alternative locations for item {df.index[hover]}",
-                    opacity=0.8,
+                    title=f"Alternative locations for item {df.get('item', df.index)[hover]}",
+                    opacity=np.isfinite(losses) * 0.8,
                     color_continuous_scale="Viridis_r",
                     labels={variable: "Local loss&nbsp;"},
                     custom_data=["index"],
@@ -466,7 +469,7 @@ class ModelBarPlot(dcc.Graph):
                 pd.DataFrame(df[coefficients].iloc[hover]),
                 range_y=(-coefficient_range, coefficient_range),
                 color=coefficients,
-                title=f"Local model for item {df.index[hover]}",
+                title=f"Local model for item {df.get('item', df.index)[hover]}",
             )
             fig.update_layout(showlegend=False)
         elif (

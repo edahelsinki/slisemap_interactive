@@ -27,10 +27,6 @@ from slisemap_interactive.plots import (
     first_not_none,
 )
 
-# TODO Some columns should probably be hidden from the normal plots
-# TODO We cannot export data+plots when a Slisemap object is loaded
-
-
 # Xiplot has a slightly different layout than slisemap_interactive (mainly different theme)
 DEFAULT_FIG_LAYOUT = dict(
     margin=dict(l=10, r=10, t=30, b=10, autoexpand=True), uirevision=True
@@ -44,7 +40,12 @@ def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
         parser: Function for parsing a Slisemap file to a dataframe.
         extension: File extension.
     """
-    return slisemap_to_dataframe, ".sm"
+    # TODO Some columns should probably be hidden from the normal plots
+
+    def load(data, max_n: int = 5000, max_l: int = 200):
+        return slisemap_to_dataframe(data, max_n=max_n, index=False, losses=max_l)
+
+    return load, ".sm"
 
 
 class SlisemapEmbeddingPlot(APlot):
