@@ -10,6 +10,7 @@ from xiplot.plugin import (
     STORE_DATAFRAME_ID,
     PdfButton,
     PlotData,
+    FlexRow,
 )
 import pandas as pd
 from dash import html, dcc, Output, Input, MATCH, ALL
@@ -20,17 +21,35 @@ from slisemap_interactive.plots import (
     DistributionPlot,
     EmbeddingPlot,
     JitterSlider,
-    ModelBarDropdown,
+    BarGroupingDropdown,
     ModelBarPlot,
     ModelMatrixPlot,
     VariableDropdown,
     first_not_none,
+    try_twice,
 )
 
 # Xiplot has a slightly different layout than slisemap_interactive (mainly different theme)
-DEFAULT_FIG_LAYOUT = dict(
-    margin=dict(l=10, r=10, t=30, b=10, autoexpand=True), uirevision=True
-)
+FIG_LAYOUT = dict(margin=dict(l=10, r=10, t=30, b=10, autoexpand=True), uirevision=True)
+
+
+class LabelledControls(FlexRow):
+    def __init__(
+        self,
+        kwargs: Dict[str, Any] = {},
+        **controls: Any,
+    ):
+        """Wrap controls in a `FlexRow` with labels on top
+
+        Args:
+            **controls: `{label: control}`.
+            kwargs: Additional key word arguments forwarded to `FlexRow`
+        """
+        children = [
+            html.Div([lab, ctrl], style={"flex": "1", "minWidth": "12rem"})
+            for lab, ctrl in controls.items()
+        ]
+        super().__init__(*children, **kwargs)
 
 
 def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
@@ -79,7 +98,7 @@ class SlisemapEmbeddingPlot(APlot):
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
             return EmbeddingPlot.plot(
-                df, x, y, variable, jitter, hover, fig_layout=DEFAULT_FIG_LAYOUT
+                df, x, y, variable, jitter, hover, fig_layout=FIG_LAYOUT
             )
 
         @app.callback(
@@ -104,14 +123,22 @@ class SlisemapEmbeddingPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(id=cls.get_id(index), clear_on_unhover=True),
-            VariableDropdown(
-                df, id=cls.get_id(index, "variable"), value=config.get("variable", None)
-            ),
-            ClusterDropdown(
-                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
-            ),
-            JitterSlider(
-                id=cls.get_id(index, "jitter"), value=config.get("jitter", 0.0)
+            LabelledControls(
+                Variable=VariableDropdown(
+                    df,
+                    id=cls.get_id(index, "variable"),
+                    value=config.get("variable", None),
+                ),
+                Clusters=ClusterDropdown(
+                    df,
+                    id=cls.get_id(index, "cluster"),
+                    value=config.get("cluster", None),
+                ),
+                Jitter=JitterSlider(
+                    id=cls.get_id(index, "jitter"),
+                    value=config.get("jitter", 0.0),
+                    className="stretch",
+                ),
             ),
         ]
 
@@ -138,9 +165,19 @@ class SlisemapModelBarPlot(APlot):
             bs = [c for c in df.columns if c[:2] == "B_"]
             if len(bs) == 0:
                 return placeholder_figure("Slisemap local models not found")
-            return ModelBarPlot.plot(
-                df, bs, clusters, grouping, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            return try_twice(
+                lambda: ModelBarPlot.plot(
+                    df, bs, clusters, grouping, hover, fig_layout=FIG_LAYOUT
+                )
             )
+
+        @app.callback(
+            Output(cls.get_id(MATCH, "grouping"), "disabled"),
+            Input(cls.get_id(MATCH, "cluster"), "value"),
+            prevent_initial_call=False,
+        )
+        def callback(cluster):
+            return cluster is None
 
         PlotData.register_callback(
             cls.name(),
@@ -155,11 +192,16 @@ class SlisemapModelBarPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
         return [
             dcc.Graph(cls.get_id(index)),
-            ClusterDropdown(
-                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
-            ),
-            ModelBarDropdown(
-                id=cls.get_id(index, "grouping"), value=config.get("grouping", None)
+            LabelledControls(
+                Clusters=ClusterDropdown(
+                    df,
+                    id=cls.get_id(index, "cluster"),
+                    value=config.get("cluster", None),
+                ),
+                Grouping=BarGroupingDropdown(
+                    id=cls.get_id(index, "grouping"),
+                    value=config.get("grouping", None),
+                ),
             ),
         ]
 
@@ -188,9 +230,7 @@ class SlisemapModelMatrixPlot(APlot):
             bs = [c for c in df.columns if c[:2] == "B_"]
             if len(bs) == 0:
                 return placeholder_figure("Slisemap local models not found")
-            return ModelMatrixPlot.plot(
-                df, bs, zs0, hover, fig_layout=DEFAULT_FIG_LAYOUT
-            )
+            return ModelMatrixPlot.plot(df, bs, zs0, hover, fig_layout=FIG_LAYOUT)
 
         @app.callback(
             Output(STORE_HOVERED_ID, "data"),
@@ -227,7 +267,7 @@ class SlisemapDensityPlot(APlot):
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
             return DistributionPlot.plot(
-                df, variable, "Density", cluster, hover, fig_layout=DEFAULT_FIG_LAYOUT
+                df, variable, "Density", cluster, hover, fig_layout=FIG_LAYOUT
             )
 
         PlotData.register_callback(
@@ -243,11 +283,17 @@ class SlisemapDensityPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()):
         return [
             dcc.Graph(cls.get_id(index)),
-            VariableDropdown(
-                df, id=cls.get_id(index, "variable"), value=config.get("variable", None)
-            ),
-            ClusterDropdown(
-                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
+            LabelledControls(
+                Variable=VariableDropdown(
+                    df,
+                    id=cls.get_id(index, "variable"),
+                    value=config.get("variable", None),
+                ),
+                Clusters=ClusterDropdown(
+                    df,
+                    id=cls.get_id(index, "cluster"),
+                    value=config.get("cluster", None),
+                ),
             ),
         ]
 
@@ -273,8 +319,10 @@ class SlisemapHistogramPlot(APlot):
             df = df_from_store(df)
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
-            return DistributionPlot.plot(
-                df, variable, "Histogram", cluster, hover, fig_layout=DEFAULT_FIG_LAYOUT
+            return try_twice(
+                lambda: DistributionPlot.plot(
+                    df, variable, "Histogram", cluster, hover, fig_layout=FIG_LAYOUT
+                )
             )
 
         PlotData.register_callback(
@@ -290,10 +338,16 @@ class SlisemapHistogramPlot(APlot):
     def create_layout(cls, index, df, columns, config=dict()):
         return [
             dcc.Graph(cls.get_id(index)),
-            VariableDropdown(
-                df, id=cls.get_id(index, "variable"), value=config.get("variable", None)
-            ),
-            ClusterDropdown(
-                df, id=cls.get_id(index, "cluster"), value=config.get("cluster", None)
+            LabelledControls(
+                Variable=VariableDropdown(
+                    df,
+                    id=cls.get_id(index, "variable"),
+                    value=config.get("variable", None),
+                ),
+                Clusters=ClusterDropdown(
+                    df,
+                    id=cls.get_id(index, "cluster"),
+                    value=config.get("cluster", None),
+                ),
             ),
         ]
