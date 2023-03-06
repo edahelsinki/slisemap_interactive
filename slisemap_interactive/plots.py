@@ -2,7 +2,7 @@
 Functions for generating dynamic plots.
 """
 
-from typing import Any, Callable, Dict, Literal, Optional, Sequence, get_args
+from typing import Any, Callable, Dict, Iterable, Literal, Optional, Sequence, get_args
 
 from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL
 import plotly.express as px
@@ -80,6 +80,15 @@ def first_not_none(
 
 
 def is_cluster_or_categorical(df: pd.DataFrame, column: str) -> bool:
+    """Check if the column exists in the dataframe and if it is categorical or cluster-like.
+
+    Args:
+        df: Dataframe.
+        column: Column.
+
+    Returns:
+        True if the column exists and should be treated as categorical.
+    """
     col = df.get(column, None)
     if col is None:
         return False
@@ -88,6 +97,23 @@ def is_cluster_or_categorical(df: pd.DataFrame, column: str) -> bool:
     if "cluster" in column.lower():
         return True
     return False
+
+
+def get_categories(series: pd.Series) -> Iterable[str]:
+    """Get the categories from a `pd.Series`.
+
+    Args:
+        series: Categorical or assumed to be categorical column of a dataframe.
+
+    Returns:
+        Categories in an index or array.
+    """
+    if is_categorical_dtype(series):
+        return series.cat.categories
+    else:
+        un = series.unique()
+        un.sort()
+        return un
 
 
 class DataCache(dict):
@@ -172,23 +198,20 @@ class ClusterDropdown(dcc.Dropdown):
         value: Optional[str] = None,
         **kwargs,
     ):
-        clusters = ["No clusters"]
-        while clusters[0] in df.columns:
-            clusters[0] += "_"
-        clusters.extend(c for c in df.columns if is_cluster_or_categorical(df, c))
-        if value is None or value not in clusters:
-            value = clusters[0]
+        clusters = [c for c in df.columns if is_cluster_or_categorical(df, c)]
         if id is None:
             assert data is not None and controls is not None
             id = self.generate_id(data, controls)
-        super().__init__(clusters, value, id=id, clearable=False, **kwargs)
+        super().__init__(
+            clusters, value, id=id, clearable=True, placeholder="No clusters", **kwargs
+        )
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
-class HistogramDropdown(dcc.Dropdown):
+class DensityTypeDropdown(dcc.Dropdown):
     def __init__(
         self,
         data: Optional[int] = None,
@@ -210,7 +233,7 @@ class HistogramDropdown(dcc.Dropdown):
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
-class ModelBarDropdown(dcc.Dropdown):
+class BarGroupingDropdown(dcc.Dropdown):
     def __init__(
         self,
         data: Optional[int] = None,
@@ -296,14 +319,17 @@ class EmbeddingPlot(dcc.Graph):
 
         fig = None
         if is_cluster_or_categorical(df, variable):
+            cats = get_categories(df[variable])
             df2 = dfmod(variable)
+            df2[variable] = df2[variable].astype("category")
             fig = px.scatter(
                 df2,
                 x=x,
                 y=y,
                 color=variable,
+                color_discrete_sequence=px.colors.qualitative.Plotly,
                 symbol=variable,
-                category_orders={variable: df[variable].cat.categories},
+                category_orders={variable: cats},
                 title="Embedding",
                 custom_data=["index"],
             )
@@ -451,7 +477,7 @@ class ModelBarPlot(dcc.Graph):
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
-            Input(ModelBarDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(BarGroupingDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
         def callback(cluster, grouping, hover):
@@ -461,6 +487,13 @@ class ModelBarPlot(dcc.Graph):
             return try_twice(
                 lambda: cls.plot(df, coefficients, cluster, grouping, hover)
             )
+
+        @app.callback(
+            Output(BarGroupingDropdown.generate_id(MATCH, MATCH), "disabled"),
+            Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
+        )
+        def callback(cluster):
+            return cluster is None
 
     GROUPING_OPTIONS = Literal["Variables", "Clusters"]
 
@@ -474,38 +507,47 @@ class ModelBarPlot(dcc.Graph):
         fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
         coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
-
         if hover is not None:
             fig = px.bar(
                 pd.DataFrame(df[coefficients].iloc[hover]),
                 range_y=(-coefficient_range, coefficient_range),
                 color=coefficients,
+                color_discrete_sequence=px.colors.qualitative.Plotly,
                 title=f"Local model for item {df.get('item', df.index)[hover]}",
             )
             fig.update_layout(showlegend=False)
         elif is_cluster_or_categorical(df, cluster):
-            if grouping == "Clusters":
-                fig = px.bar(
-                    df.groupby([cluster])[coefficients].mean().T,
-                    color=cluster,
-                    range_y=(-coefficient_range, coefficient_range),
-                    title="Local models",
-                    facet_col=cluster,
-                )
-                fig.update_annotations(visible=False)  # Remove facet labels
-            else:
-                fig = px.bar(
-                    df.groupby([cluster])[coefficients].mean().T,
-                    color=cluster,
-                    range_y=(-coefficient_range, coefficient_range),
-                    barmode="group",
-                    title="Local models",
-                )
-        else:
-            df2 = pd.DataFrame(df[coefficients].mean())
+            cats = get_categories(df[cluster])
+            df2 = (
+                df.groupby([cluster])[coefficients]
+                .aggregate(["mean", "std"])
+                .stack(level=0)
+                .reset_index()
+                .rename(columns=dict(level_1="Coefficients"))
+            )
+            df2[cluster] = df2[cluster].astype("category")
+            facet = grouping == "Clusters"
             fig = px.bar(
                 df2,
+                x="Coefficients",
+                y="mean",
+                error_y="std",
+                color=cluster,
+                category_orders={cluster: cats},
+                color_discrete_sequence=px.colors.qualitative.Plotly,
+                range_y=(-coefficient_range, coefficient_range),
+                title="Local models",
+                barmode="relative" if facet else "group",
+                facet_col=cluster if facet else None,
+            )
+            fig.update_annotations(visible=False)  # Remove facet labels
+        else:
+            fig = px.bar(
+                df[coefficients].aggregate(["mean", "std"]).T,
+                y="mean",
+                error_y="std",
                 color=coefficients,
+                color_discrete_sequence=px.colors.qualitative.Plotly,
                 range_y=(-coefficient_range, coefficient_range),
                 title="Mean local model",
             )
@@ -537,7 +579,7 @@ class DistributionPlot(dcc.Graph):
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(VariableDropdown.generate_id(MATCH, MATCH), "value"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
-            Input(HistogramDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(DensityTypeDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
         def callback(variable, cluster, histogram, hover):
@@ -556,18 +598,20 @@ class DistributionPlot(dcc.Graph):
         fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
     ) -> Figure:
         if is_cluster_or_categorical(df, cluster):
+            cats = get_categories(df[cluster])
             if plot_type == "Histogram":
                 fig = px.histogram(
                     df,
                     variable,
                     color=cluster,
+                    color_discrete_sequence=px.colors.qualitative.Plotly,
                     title=f"{variable} histogram",
-                    category_orders={cluster: df[cluster].cat.categories},
+                    category_orders={cluster: cats},
                 )
             else:
                 df2 = df.groupby(cluster)[variable]
-                data = [df2.get_group(g) for g in df2.groups.keys()]
-                clusters = [str(g) for g in df2.groups.keys()]
+                data = [df2.get_group(g) for g in cats]
+                clusters = [str(g) for g in cats]
                 colors = px.colors.qualitative.Plotly
                 colors = colors * ((len(clusters) - 1) // len(colors) + 1)
                 lengths = [len(i) > 1 for i in df2.groups.values()]

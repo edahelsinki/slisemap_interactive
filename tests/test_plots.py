@@ -72,7 +72,7 @@ def test_matrix(dataframe):
 
 def test_bar(dataframe):
     graph = ModelBarPlot(0)
-    ctrl1 = ModelBarDropdown(id="")
+    ctrl1 = BarGroupingDropdown(id="")
     ctrl2 = ClusterDropdown(dataframe, id="")
     ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, "Variables", 2)
     ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, "Variables", None)
@@ -87,7 +87,7 @@ def test_bar(dataframe):
 def test_dist(dataframe):
     graph = DistributionPlot(0)
     ctrl1 = VariableDropdown(dataframe, id="")
-    ctrl2 = HistogramDropdown(id="")
+    ctrl2 = DensityTypeDropdown(id="")
     ctrl3 = ClusterDropdown(dataframe, id="")
     DistributionPlot.plot(dataframe, "Y_0", "Histogram", None, 2)
     DistributionPlot.plot(dataframe, "Y_0", "Histogram", "cls", 2)

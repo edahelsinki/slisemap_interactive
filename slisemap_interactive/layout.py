@@ -6,10 +6,10 @@ from dash import Dash, html
 import pandas as pd
 
 from slisemap_interactive.plots import (
-    ModelBarDropdown,
+    BarGroupingDropdown,
     ClusterDropdown,
     EmbeddingPlot,
-    HistogramDropdown,
+    DensityTypeDropdown,
     JitterSlider,
     ModelBarPlot,
     ModelMatrixPlot,
@@ -85,8 +85,8 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         VariableDropdown(df, data_key, style=style_controls),
         ClusterDropdown(df, data_key, style=style_controls),
         JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
-        ModelBarDropdown(data_key, style=style_controls),
-        HistogramDropdown(data_key, style=style_controls),
+        BarGroupingDropdown(data_key, style=style_controls),
+        DensityTypeDropdown(data_key, style=style_controls),
     ]
     plots = [
         EmbeddingPlot(data_key, style=style_plot),
