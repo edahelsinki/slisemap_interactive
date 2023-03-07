@@ -1,0 +1,38 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths: ["**.py"]
+  pull_request:
+    paths: ["**.py"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest build
+          python -m pip install --editable .
+      - name: Build package
+        run: |
+          python -m build
+          python -c "import os, glob; assert os.path.getsize(sorted(glob.glob('dist/*-*.whl'))[-1]) > 10_000"
+      - name: Test with pytest
+        run: |
+          pytest
