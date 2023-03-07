@@ -3,7 +3,6 @@
 """
 import argparse
 import os
-import sys
 from os import PathLike
 from typing import Any, Dict, Literal, Union
 from warnings import warn
@@ -19,7 +18,11 @@ from slisemap_interactive.plots import DataCache
 
 
 def cli():
-    """Plot a slisemap object interactively. This function acts like a command line program."""
+    """
+    Plot a slisemap object interactively.
+    This function acts like a command line program.
+    Arguments are parsed from `sys.argv` using `argparse.ArgumentParser()`.
+    """
     parser = argparse.ArgumentParser(
         prog="slisemap_interactive",
         description="Slisemap - Interactive:   A Dash app for interactively visualising Slisemap objects",
@@ -28,9 +31,9 @@ def cli():
         "PATH",
         help="The path to a Slisemap object (or a directory containing a Slisemap object)",
     )
-    parser.add_argument("--host", help="Host IP used to serve the application")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("-p", "--port", help="Port used to serve the application")
-    parser.add_argument("-d", "--debug", action="store_true", help="enable debug mode")
+    parser.add_argument("--host", help="Host IP used to serve the application")
     args = parser.parse_args()
     path = args.PATH
     if os.path.isdir(path):
@@ -47,17 +50,28 @@ def cli():
     ForegroundApp().set_data(path).run(**kwargs)
 
 
-def plot(slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], *args, **kwargs):
+def plot(
+    slisemap: Union[pd.DataFrame, Slisemap, str, PathLike],
+    width: Union[str, int] = "100%",
+    height: Union[str, int] = 1000,
+    mode: Literal[None, "inline", "external", "jupyterlab"] = None,
+    appargs: Dict[str, Any] = {},
+    **runargs: Any,
+):
     """Plot a Slisemap object interactively.
     This function is designed to be called from a jupyter notebook or an interactive Python shell.
     This function automatically starts a server in the background.
 
     Args:
         slisemap: The Slisemap object.
-        *args: Positional arguments forwarded to `BackgroundApp.display()`.
-        **kwargs: Keyword arguments forwarded to `BackgroundApp.display()`.
+        width: Width of the iframe (if `mode="inline"`). Defaults to "100%".
+        height: Height of the iframe (if `mode="inline"`). Defaults to 1000.
+        mode: How should the plot be displayed (see `jupyter_dash.JupyterDash().run_server()`). Defaults to "inline" in a notebook and to "external" otherwise.
+        appargs: Keyword arguments to `dash.Dash()`. Only used if the background server is not already running. Defaults to {}.
+        **runargs: Keyword arguments to `dash.Dash().run()`. Only used if the background server is not already running.
     """
-    BackgroundApp.get_app().set_data(slisemap).display(*args, **kwargs)
+    app = BackgroundApp.get_app(appargs, runargs)
+    app.set_data(slisemap).display(width, height, mode)
 
 
 class ForegroundApp(Dash):
@@ -95,8 +109,8 @@ class BackgroundApp(JupyterDash):
     __app = None
 
     def __init__(self, *args, **kwargs):
-        """Create the `BackgroundApp` server, see `jupyter_dash.JupyterDash()` for arguments."""
-        super().__init__(*args, **kwargs)
+        """Create the `BackgroundApp` server, see `dash.Dash()` for arguments."""
+        super().__init__(*args, title="Interactive Slisemap", **kwargs)
         self._display_url = None
         self._display_port = None
         self._display_call = None
@@ -126,29 +140,31 @@ class BackgroundApp(JupyterDash):
     def get_app(
         cls, appargs: Dict[str, Any] = {}, runargs: Dict[str, Any] = {}
     ) -> "BackgroundApp":
-        """Get the currently running `JupyterApp`, or start a new one.
+        """Get the currently running `BackgroundApp`, or start a new one.
 
         Args:
-            appargs: Keyword arguments to `JupyterApp()`. Defaults to {}.
-            runargs: Keyword arguments to `JupyterApp.run_server()`. Defaults to {}.
+            appargs: Keyword arguments to `BackgroundApp()`. Defaults to {}.
+            runargs: Keyword arguments to `BackgroundApp().run()`. Defaults to {}.
 
         Returns:
-            The currently running `JupyterApp`.
+            The currently running `BackgroundApp`.
         """
         if BackgroundApp.__app is None:
             app = BackgroundApp(**appargs)
-            app.run_server(**runargs)
+            app.run(**runargs)
         return BackgroundApp.__app
 
-    def run_server(self, *args, **kwargs):
-        """Start the server, see `JupyterDash.run_server()`."""
+    def run(self, *args, **kwargs):
+        """Start the server, see `dash.Dash().run()` for arguments."""
         if BackgroundApp.__app is not None:
             warn(
                 "A `BackgroundApp` already exists. Use `BackgroundApp.get_app(...)` to reuse it.",
                 Warning,
             )
-        super().run_server(*args, **kwargs)
+        super().run(*args, **kwargs)
         BackgroundApp.__app = self
+
+    run_server = run
 
     def shutdown(self):
         """Shutdown the server"""
@@ -160,35 +176,37 @@ class BackgroundApp(JupyterDash):
             BackgroundApp.__app = None
 
     def _display_in_colab(self, url, port, mode, width, height):
-        # Catch parameters to the display function for reuse later (see `BackgroundApp.display()`)
+        # Catch parameters to the display function for reuse later (see `BackgroundApp().display()`)
         self._display_url = url
         self._display_port = port
         self._display_call = super()._display_in_colab
 
     def _display_in_jupyter(self, url, port, mode, width, height):
-        # Catch parameters to the display function for reuse later (see `BackgroundApp.display()`)
+        # Catch parameters to the display function for reuse later (see `BackgroundApp().display()`)
         self._display_url = url
         self._display_port = port
         self._display_call = super()._display_in_jupyter
 
     def display(
         self,
-        mode: Literal[None, "inline", "external", "jupyterlab"] = None,
         width: Union[str, int] = "100%",
         height: Union[str, int] = 1000,
+        mode: Literal[None, "inline", "external", "jupyterlab"] = None,
     ):
         """Display the plots.
 
         Args:
-            mode: How should the plot be displayed (see `JupyterDash.run_server()`). Defaults to "inline" in a notebook and to "external" otherwise.
-            width: Width of the iframe. Defaults to "100%".
-            height: Height of the iframe. Defaults to 1000.
+            width: Width of the iframe (if `mode="inline"`). Defaults to "100%".
+            height: Height of the iframe (if `mode="inline"`). Defaults to 1000.
+            mode: How should the plot be displayed (see `JupyterDash().run_server()`). Defaults to "inline" in a notebook and to "external" otherwise.
 
         Raises:
-            Exception: The server must be started (through `run_server()`) before the plots are displayed.
+            Exception: The server must be started (through `BackgroundApp().run()`) before the plots are displayed.
         """
         if self._display_call is None:
-            raise Exception("You need to run `run_server()` before displaying results")
+            raise Exception(
+                "You need to run `BackgroundApp().run()` before displaying results"
+            )
         if mode is None:
             mode = "inline" if _can_display_iframe() else "external"
         self._display_call(self._display_url, self._display_port, mode, width, height)
