@@ -53,6 +53,7 @@ def test_load_slisemap(sm_to_df):
     assert all(f"Y_{i}" in df3 for i in sm.metadata.get_targets())
     assert all(f"Z_{i}" in df3 for i in sm.metadata.get_dimensions())
     assert np.allclose(df3.index, sm.metadata.get_rows())
+    slisemap_to_dataframe(sm, losses=20, max_n=20, clusters=0, index=False)
 
 
 def test_rec_l(sm_to_df):

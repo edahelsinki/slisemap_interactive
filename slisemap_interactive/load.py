@@ -105,7 +105,7 @@ def slisemap_to_dataframe(
     L = sm.get_L(X=sm._X[ss, :], Y=sm._Y[ss, :])[ss, :]
     dfs.append(pd.DataFrame({"Local loss": L.diagonal()}))
     if not isinstance(losses, bool) and losses > 0 and losses * 2 < Z.shape[0]:
-        sel = subsample(Z, losses)
+        sel = subsample(Z[ss, :], losses)
         sel.sort()
         Ln = [f"LT_{rows[i]}" for i in sel]
         dfs.append(pd.DataFrame.from_records(L.T[:, sel], columns=Ln))
