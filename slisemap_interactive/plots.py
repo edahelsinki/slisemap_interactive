@@ -10,7 +10,7 @@ import plotly.figure_factory as ff
 from plotly.graph_objects import Figure
 import pandas as pd
 import numpy as np
-from pandas.api.types import is_categorical_dtype
+from pandas.api.types import is_categorical_dtype, is_object_dtype, is_bool_dtype
 
 from slisemap_interactive.load import get_L_column
 
@@ -94,8 +94,14 @@ def is_cluster_or_categorical(df: pd.DataFrame, column: str) -> bool:
         return False
     if is_categorical_dtype(col):
         return True
+    if is_bool_dtype(col):
+        return True
     if "cluster" in column.lower():
         return True
+    if is_object_dtype(col):
+        if len(col[:50].unique()) <= 10:
+            if len(col.unique()) <= 10:
+                return True
     return False
 
 
@@ -112,7 +118,7 @@ def get_categories(series: pd.Series) -> Iterable[str]:
         return series.cat.categories
     else:
         un = series.unique()
-        un.sort()
+        # un.sort()
         return un
 
 
