@@ -1,1 +1,1 @@
-from slisemap_interactive.app import plot
+from slisemap_interactive.app import plot, shutdown, BackgroundApp, ForegroundApp

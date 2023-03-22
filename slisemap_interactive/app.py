@@ -74,6 +74,19 @@ def plot(
     app.set_data(slisemap).display(width, height, mode)
 
 
+def shutdown():
+    """Shutdown the current background server for interactive Slisemap plots.
+
+    This is a shortcut for `BackgroundApp.get_app().shutdown()`.
+    """
+    try:
+        app = BackgroundApp.__app
+    except:
+        app = None
+    if app is not None:
+        app.shutdown()
+
+
 class ForegroundApp(Dash):
     """Create a blocking Dash app for interactive visualisations of a Slisemap object."""
 
@@ -151,17 +164,20 @@ class BackgroundApp(JupyterDash):
         """
         if BackgroundApp.__app is None:
             app = BackgroundApp(**appargs)
+        else:
+            app = BackgroundApp.__app
+        if (app._display_url, app._display_port) not in app._server_threads:
             app.run(**runargs)
-        return BackgroundApp.__app
+        return app
 
     def run(self, *args, **kwargs):
-        """Start the server, see `dash.Dash().run()` for arguments."""
+        """Start the server, see `dash.JupyterDash().run_server()` for arguments."""
         if BackgroundApp.__app is not None:
             warn(
                 "A `BackgroundApp` already exists. Use `BackgroundApp.get_app(...)` to reuse it.",
                 Warning,
             )
-        super().run(*args, **kwargs)
+        super().run_server(*args, **kwargs)
         BackgroundApp.__app = self
 
     run_server = run
