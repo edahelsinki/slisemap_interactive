@@ -5,7 +5,7 @@ import pytest
 from slisemap_interactive.load import get_L_column, slisemap_to_dataframe, subsample
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def sm_to_df():
     X = np.random.normal(0, 1, (100, 5))
     Y = np.random.normal(0, 1, 100)

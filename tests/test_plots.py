@@ -3,7 +3,7 @@ import pandas as pd
 from slisemap_interactive.plots import *
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def dataframe():
     df = pd.DataFrame()
     df["cls"] = pd.Categorical([1, 2, 3, 1, 2, 3])

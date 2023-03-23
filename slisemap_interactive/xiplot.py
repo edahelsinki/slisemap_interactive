@@ -83,7 +83,6 @@ class SlisemapEmbeddingPlot(APlot):
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(cls.get_id(MATCH, "jitter"), "value"),
             Input(STORE_HOVERED_ID, "data"),
-            prevent_initial_call=False,
         )
         def callback(df, variable, cluster, jitter, hover):
             df = df_from_store(df)
@@ -158,7 +157,6 @@ class SlisemapModelBarPlot(APlot):
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(cls.get_id(MATCH, "grouping"), "value"),
             Input(STORE_HOVERED_ID, "data"),
-            prevent_initial_call=False,
         )
         def callback(df, clusters, grouping, hover):
             df = df_from_store(df)
@@ -219,7 +217,6 @@ class SlisemapModelMatrixPlot(APlot):
             Output(cls.get_id(MATCH), "figure"),
             Input(STORE_DATAFRAME_ID, "data"),
             Input(STORE_HOVERED_ID, "data"),
-            prevent_initial_call=False,
         )
         def callback(df, hover):
             df = df_from_store(df)
@@ -260,7 +257,6 @@ class SlisemapDensityPlot(APlot):
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(STORE_HOVERED_ID, "data"),
-            prevent_initial_call=False,
         )
         def callback(df, variable, cluster, hover):
             df = df_from_store(df)
@@ -313,7 +309,6 @@ class SlisemapHistogramPlot(APlot):
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(STORE_HOVERED_ID, "data"),
-            prevent_initial_call=False,
         )
         def callback(df, variable, cluster, hover):
             df = df_from_store(df)

@@ -133,7 +133,7 @@ def slisemap_to_dataframe(
         if index:
             df.index = rows
         else:
-            df["item"] = rows
+            df.insert(0, "item", rows)
     del dfs
     gc.collect(1)
     return df
@@ -159,7 +159,7 @@ def get_L_column(df: pd.DataFrame, index: Optional[int] = None) -> Optional[np.n
     if len(lts) == 0:
         return None
     loss = np.repeat(np.nan, df.shape[0])
-    loss[index] = df["Local loss"][index]
+    loss[index] = df["Local loss"].iloc[index]
     for i, row in enumerate(rows):
         l = lts.get(f"LT_{row}", -1)
         if l >= 0:
