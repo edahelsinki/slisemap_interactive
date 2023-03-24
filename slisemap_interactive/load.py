@@ -81,6 +81,7 @@ def slisemap_to_dataframe(
     targets = sm.metadata.get_targets()
     if len(targets) > 1 or targets[0] != "Y":
         targets = preface_names(targets, "Y_")
+    predictions = ["Ŷ" + t[1:] for t in targets]
     coefficients = sm.metadata.get_coefficients()
     coefficients = preface_names(coefficients, "B_")
     dimensions = sm.metadata.get_dimensions()
@@ -98,8 +99,12 @@ def slisemap_to_dataframe(
         pd.DataFrame.from_records(sm.metadata.unscale_Y()[ss, :], columns=targets),
         pd.DataFrame.from_records(Z[ss, :], columns=dimensions),
         pd.DataFrame.from_records(sm.get_B()[ss, :], columns=coefficients),
+        pd.DataFrame.from_records(
+            sm.metadata.unscale_Y(sm.predict(X=sm._X[ss, :], B=sm._B[ss, :])),
+            columns=predictions,
+        ),
     ]
-    del variables, targets, dimensions, coefficients
+    del variables, targets, dimensions, coefficients, predictions
     gc.collect(1)
 
     L = sm.get_L(X=sm._X[ss, :], Y=sm._Y[ss, :])[ss, :]

@@ -181,7 +181,7 @@ class VariableDropdown(dcc.Dropdown):
         value: Optional[str] = None,
         **kwargs,
     ):
-        vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B")]
+        vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B", "Ŷ")]
         if value is None or value not in vars:
             value = vars[0]
         if id is None:
