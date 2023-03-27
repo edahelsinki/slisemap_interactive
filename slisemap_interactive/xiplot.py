@@ -3,32 +3,33 @@
 """
 from typing import Any, Callable, Dict, List
 
+import pandas as pd
+from dash import ALL, MATCH, Input, Output, State, dcc, html
 from xiplot.plugin import (
-    APlot,
-    STORE_HOVERED_ID,
+    STORE_CLICKED_ID,
     STORE_DATAFRAME_ID,
+    STORE_HOVERED_ID,
+    APlot,
+    FlexRow,
     PdfButton,
     PlotData,
-    FlexRow,
 )
-import pandas as pd
-from dash import html, dcc, Output, Input, MATCH, ALL
 
 from slisemap_interactive.load import slisemap_to_dataframe
 from slisemap_interactive.plots import (
+    BarGroupingDropdown,
     ClusterDropdown,
     DistributionPlot,
     EmbeddingPlot,
     JitterSlider,
-    BarGroupingDropdown,
     LinearImpact,
     ModelBarPlot,
     ModelMatrixPlot,
     PredictionDropdown,
     VariableDropdown,
     first_not_none,
-    try_twice,
     placeholder_figure,
+    try_twice,
 )
 
 # Xiplot has a slightly different layout than slisemap_interactive (mainly different theme)
@@ -89,19 +90,22 @@ class SlisemapEmbeddingPlot(APlot):
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(cls.get_id(MATCH, "jitter"), "value"),
             Input(STORE_HOVERED_ID, "data"),
+            State(STORE_CLICKED_ID, "data"),
         )
-        def callback(df, variable, cluster, jitter, hover):
+        def callback(df, variable, cluster, jitter, hover, click):
             df = df_from_store(df)
+            if cluster in df.columns:
+                variable = cluster
+            if variable not in df.columns:
+                return placeholder_figure(f"{variable} not found")
             dimensions = filter(lambda c: c[:2] == "Z_", df.columns)
             try:
                 x = next(dimensions)
                 y = next(dimensions)
             except StopIteration:
                 return placeholder_figure("Slisemap embedding not found")
-            if cluster in df.columns:
-                variable = cluster
-            if variable not in df.columns:
-                return placeholder_figure(f"{variable} not found")
+            if hover is None:
+                hover = click
             return EmbeddingPlot.plot(
                 df, x, y, variable, jitter, hover, fig_layout=FIG_LAYOUT
             )
@@ -113,6 +117,18 @@ class SlisemapEmbeddingPlot(APlot):
         )
         def hover_callback(inputs):
             return first_not_none(inputs, EmbeddingPlot.get_hover_index)
+
+        @app.callback(
+            Output(STORE_CLICKED_ID, "data"),
+            Input(cls.get_id(ALL), "clickData"),
+            State(STORE_CLICKED_ID, "data"),
+            prevent_initial_call=True,
+        )
+        def click_callback(inputs, old):
+            new = first_not_none(inputs, EmbeddingPlot.get_hover_index)
+            if new != old:
+                return new
+            return None
 
         PlotData.register_callback(
             cls.name(),
@@ -167,12 +183,15 @@ class SlisemapModelBarPlot(APlot):
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(cls.get_id(MATCH, "grouping"), "value"),
             Input(STORE_HOVERED_ID, "data"),
+            State(STORE_CLICKED_ID, "data"),
         )
-        def callback(df, clusters, grouping, hover):
+        def callback(df, clusters, grouping, hover, click):
             df = df_from_store(df)
             bs = [c for c in df.columns if c[:2] == "B_"]
             if len(bs) == 0:
                 return placeholder_figure("Slisemap local models not found")
+            if hover is None:
+                hover = click
             return try_twice(
                 lambda: ModelBarPlot.plot(
                     df, bs, clusters, grouping, hover, fig_layout=FIG_LAYOUT
@@ -231,8 +250,9 @@ class SlisemapModelMatrixPlot(APlot):
             Output(cls.get_id(MATCH), "figure"),
             Input(STORE_DATAFRAME_ID, "data"),
             Input(STORE_HOVERED_ID, "data"),
+            State(STORE_CLICKED_ID, "data"),
         )
-        def callback(df, hover):
+        def callback(df, hover, click):
             df = df_from_store(df)
             try:
                 zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
@@ -241,6 +261,8 @@ class SlisemapModelMatrixPlot(APlot):
             bs = [c for c in df.columns if c[:2] == "B_"]
             if len(bs) == 0:
                 return placeholder_figure("Slisemap local models not found")
+            if hover is None:
+                hover = click
             return ModelMatrixPlot.plot(df, bs, zs0, hover, fig_layout=FIG_LAYOUT)
 
         @app.callback(
@@ -250,6 +272,18 @@ class SlisemapModelMatrixPlot(APlot):
         )
         def hover_callback(inputs):
             return first_not_none(inputs, ModelMatrixPlot.get_hover_index)
+
+        @app.callback(
+            Output(STORE_CLICKED_ID, "data"),
+            Input(cls.get_id(ALL), "clickData"),
+            State(STORE_CLICKED_ID, "data"),
+            prevent_initial_call=True,
+        )
+        def click_callback(inputs, old):
+            new = first_not_none(inputs, ModelMatrixPlot.get_hover_index)
+            if new != old:
+                return new
+            return None
 
     @classmethod
     def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
@@ -275,11 +309,14 @@ class SlisemapDensityPlot(APlot):
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(STORE_HOVERED_ID, "data"),
+            State(STORE_CLICKED_ID, "data"),
         )
-        def callback(df, variable, cluster, hover):
+        def callback(df, variable, cluster, hover, click):
             df = df_from_store(df)
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
+            if hover is None:
+                hover = click
             return DistributionPlot.plot(
                 df, variable, "Density", cluster, hover, fig_layout=FIG_LAYOUT
             )
@@ -331,11 +368,14 @@ class SlisemapHistogramPlot(APlot):
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
             Input(STORE_HOVERED_ID, "data"),
+            State(STORE_CLICKED_ID, "data"),
         )
-        def callback(df, variable, cluster, hover):
+        def callback(df, variable, cluster, hover, click):
             df = df_from_store(df)
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
+            if hover is None:
+                hover = click
             return try_twice(
                 lambda: DistributionPlot.plot(
                     df, variable, "Histogram", cluster, hover, fig_layout=FIG_LAYOUT
@@ -394,13 +434,16 @@ class SlisemapLinearImpactPlot(APlot):
             Input(STORE_DATAFRAME_ID, "data"),
             Input(cls.get_id(MATCH, "pred"), "value"),
             Input(STORE_HOVERED_ID, "data"),
+            State(STORE_CLICKED_ID, "data"),
         )
-        def callback(df, pred, hover):
+        def callback(df, pred, hover, click):
             df = df_from_store(df)
             if pred is None:
                 return placeholder_figure("Could not find prediction")
             if pred not in df.columns:
                 return placeholder_figure(f"Could not find prediction '{pred}'")
+            if hover is None:
+                hover = click
             return try_twice(LinearImpact.plot, df, pred, hover, fig_layout=FIG_LAYOUT)
 
         PlotData.register_callback(
