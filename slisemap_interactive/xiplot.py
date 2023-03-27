@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List
 
 from xiplot.plugin import (
     APlot,
-    placeholder_figure,
     STORE_HOVERED_ID,
     STORE_DATAFRAME_ID,
     PdfButton,
@@ -22,11 +21,14 @@ from slisemap_interactive.plots import (
     EmbeddingPlot,
     JitterSlider,
     BarGroupingDropdown,
+    LinearImpact,
     ModelBarPlot,
     ModelMatrixPlot,
+    PredictionDropdown,
     VariableDropdown,
     first_not_none,
     try_twice,
+    placeholder_figure,
 )
 
 # Xiplot has a slightly different layout than slisemap_interactive (mainly different theme)
@@ -71,6 +73,10 @@ class SlisemapEmbeddingPlot(APlot):
     @classmethod
     def name(cls) -> str:
         return "Slisemap embedding plot"
+
+    @classmethod
+    def help(cls) -> str:
+        return "Plot the embedding of a Slisemap object"
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
@@ -148,6 +154,10 @@ class SlisemapModelBarPlot(APlot):
         return "Slisemap barplot for local models"
 
     @classmethod
+    def help(cls) -> str:
+        return "Local models from a Slisemap object in a bar plot"
+
+    @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
         PdfButton.register_callback(app, cls.get_id(None))
 
@@ -210,6 +220,10 @@ class SlisemapModelMatrixPlot(APlot):
         return "Slisemap matrixplot for local models"
 
     @classmethod
+    def help(cls) -> str:
+        return "Local models from a Slisemap object in a matrix plot"
+
+    @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
         PdfButton.register_callback(app, cls.get_id(None))
 
@@ -246,6 +260,10 @@ class SlisemapDensityPlot(APlot):
     @classmethod
     def name(cls) -> str:
         return "Slisemap density plot"
+
+    @classmethod
+    def help(cls) -> str:
+        return "Density plot for Slisemap objects"
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
@@ -300,6 +318,10 @@ class SlisemapHistogramPlot(APlot):
         return "Slisemap histogram plot"
 
     @classmethod
+    def help(cls) -> str:
+        return "Histogram for Slisemap objects"
+
+    @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
         PdfButton.register_callback(app, cls.get_id(None))
 
@@ -344,5 +366,58 @@ class SlisemapHistogramPlot(APlot):
                     id=cls.get_id(index, "cluster"),
                     value=config.get("cluster", None),
                 ),
+            ),
+        ]
+
+
+class SlisemapLinearImpactPlot(APlot):
+    @classmethod
+    def name(cls) -> str:
+        return "Slisemap linear impact plot"
+
+    @classmethod
+    def help(cls) -> str:
+        return (
+            "Linear impact plot for Slisemap objects\n\n"
+            + 'Plot the "impact" of the variables on the prediction.'
+            + " The impact is the variable value times the coefficient."
+            + " If the local model is a linear model, then the sum of the impact equals the prediction."
+            + "\nThis plot assumes that the local model is a linear model."
+        )
+
+    @classmethod
+    def register_callbacks(cls, app, df_from_store, df_to_store):
+        PdfButton.register_callback(app, cls.get_id(None))
+
+        @app.callback(
+            Output(cls.get_id(MATCH), "figure"),
+            Input(STORE_DATAFRAME_ID, "data"),
+            Input(cls.get_id(MATCH, "pred"), "value"),
+            Input(STORE_HOVERED_ID, "data"),
+        )
+        def callback(df, pred, hover):
+            df = df_from_store(df)
+            if pred is None:
+                return placeholder_figure("Could not find prediction")
+            if pred not in df.columns:
+                return placeholder_figure(f"Could not find prediction '{pred}'")
+            return try_twice(LinearImpact.plot, df, pred, hover, fig_layout=FIG_LAYOUT)
+
+        PlotData.register_callback(
+            cls.name(), app, dict(pred=Input(cls.get_id(MATCH, "pred"), "value"))
+        )
+
+    @classmethod
+    def create_layout(cls, index, df, columns, config=dict()):
+        return [
+            dcc.Graph(
+                cls.get_id(index), figure=placeholder_figure("Select an item to show")
+            ),
+            LabelledControls(
+                Target=PredictionDropdown(
+                    df,
+                    id=cls.get_id(index, "pred"),
+                    value=config.get("pred", None),
+                )
             ),
         ]

@@ -4,7 +4,7 @@ Functions for generating dynamic plots.
 
 from typing import Any, Callable, Dict, Iterable, Literal, Optional, Sequence, get_args
 
-from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL
+from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL, no_update
 import plotly.express as px
 import plotly.figure_factory as ff
 from plotly.graph_objects import Figure
@@ -21,19 +21,21 @@ DEFAULT_FIG_LAYOUT = dict(
 )
 
 
-def try_twice(fn: Callable[[], Any]) -> Any:
+def try_twice(fn: Callable[[], Any], *args: Any, **kwargs: Any) -> Any:
     """Call a function and if it throws an exception retry it once more.
 
     Args:
-        fn: The function to call
+        fn: The function to call.
+        *args: Arguments to the function `fn`.
+        **kwargs: Keyword arguments to the function `fn`.
 
     Returns:
-        The output from the function.
+        The output from the function `fn`.
     """
     try:
-        return fn()
+        return fn(*args, **kwargs)
     except:
-        return fn()
+        return fn(*args, **kwargs)
 
 
 def nested_get(obj: Any, *keys) -> Optional[Any]:
@@ -120,6 +122,33 @@ def get_categories(series: pd.Series) -> Iterable[str]:
         un = series.unique()
         # un.sort()
         return un
+
+
+def placeholder_figure(text: str) -> Dict[str, Any]:
+    """Display a placeholder text instead of a graph.
+    This can be used in a "callback" function when a graph cannot be rendered.
+
+    Args:
+        text: Placeholder text.
+
+    Returns:
+        Dash figure (to place into a `Output(dcc.Graph.id, "figure")`).
+    """
+    return {
+        "layout": {
+            "xaxis": {"visible": False},
+            "yaxis": {"visible": False},
+            "annotations": [
+                {
+                    "text": text,
+                    "xref": "paper",
+                    "yref": "paper",
+                    "showarrow": False,
+                    "font": {"size": 28},
+                }
+            ],
+        }
+    }
 
 
 class DataCache(dict):
@@ -255,6 +284,33 @@ class BarGroupingDropdown(dcc.Dropdown):
         if value is None or value not in options:
             value = options[0]
         super().__init__(options, value, id=id, clearable=False, **kwargs)
+
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
+
+
+class PredictionDropdown(dcc.Dropdown):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        data: Optional[int] = None,
+        controls: str = "default",
+        id: Optional[Any] = None,
+        value: Optional[str] = None,
+        **kwargs,
+    ):
+        vars = [c for c in df.columns if c[0] == "Ŷ"]
+        if len(vars) == 0:
+            value = None
+        elif value is None or value not in vars:
+            value = vars[0]
+        if id is None:
+            assert data is not None and controls is not None
+            id = self.generate_id(data, controls)
+        super().__init__(
+            vars, value, id=id, clearable=False, disabled=len(vars) < 2, **kwargs
+        )
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
@@ -591,7 +647,7 @@ class DistributionPlot(dcc.Graph):
         def callback(variable, cluster, histogram, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
-            return try_twice(lambda: cls.plot(df, variable, histogram, cluster, hover))
+            return try_twice(cls.plot, df, variable, histogram, cluster, hover)
 
     PLOT_TYPE_OPTIONS = Literal["Histogram", "Density"]
 
@@ -643,6 +699,109 @@ class DistributionPlot(dcc.Graph):
         if hover is not None:
             fig.add_vline(x=df[variable].iloc[hover])
         fig.update_layout(**fig_layout, xaxis_title=None, yaxis_title=None)
+        return fig
+
+
+class LinearImpact(dcc.Graph):
+    def __init__(
+        self, data: int, controls: str = "default", hover: str = "default", **kwargs
+    ):
+        super().__init__(id=self.generate_id(data, controls, hover), **kwargs)
+
+    @classmethod
+    def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        return {
+            "type": cls.__name__,
+            "data": data,
+            "controls": controls,
+            "hover": hover,
+        }
+
+    @classmethod
+    def register_callbacks(cls, app: Dash, data: DataCache):
+        @app.callback(
+            Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
+            Input(PredictionDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(HoverData.generate_id(MATCH, MATCH), "data"),
+        )
+        def callback(pred, hover):
+            data_key = ctx.triggered_id["data"]
+            df = data[data_key]
+            return try_twice(cls.plot, df, pred, hover)
+
+    def plot(
+        df: pd.DataFrame,
+        pred: str,
+        hover: Optional[int] = None,
+        decimals: int = 3,
+        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+    ) -> Figure:
+        if hover is None:
+            return no_update
+        Xs = [c for c in df.columns if c[0] == "X"]
+        Bs = [c for c in df.columns if c[0] == "B"]
+        if len(pred) > 2:
+            Bs = [c for c in Xs if pred[2:] in c]
+        xrow = df[Xs].iloc[hover]
+        brow = df[Bs].iloc[hover]
+        y = df[pred].iloc[hover]
+        if len(Xs) == len(Bs):
+            pass
+        elif len(Xs) + 1 == len(Bs) and "Intercept" in Bs[-1]:
+            xrow["X_Intercept"] = 1.0
+            pass
+        else:
+            return placeholder_figure(
+                f"Could not match variables to coefficients for {pred}"
+            )
+        vars = [c[2:] for c in xrow.index]
+        xrow = xrow.to_numpy()
+        brow = brow.to_numpy()
+        impact = brow * xrow
+        xdec = int(np.max(np.log(np.abs(xrow) + 1e-8)) // np.log(10))
+        xdec = decimals - min(decimals - 1, max(0, xdec))
+        bdec = int(np.max(np.log(np.abs(brow) + 1e-8)) // np.log(10))
+        bdec = decimals - min(decimals - 1, max(0, bdec))
+        ydec = int(np.log(np.abs(y)) // np.log(10))
+        ydec = decimals - min(decimals - 1, max(0, ydec))
+        idec = int(np.max(np.log(np.abs(impact) + 1e-8)) // np.log(10))
+        idec = decimals - min(decimals - 1, max(0, idec))
+        text = [
+            f"X × B = {x:.{xdec}g} × {b:.{bdec}g} = {i:.{idec}g}"
+            for x, b, i in zip(xrow, brow, impact)
+        ]
+        xmax = np.max(np.abs(impact)) * 1.01
+        df2 = pd.DataFrame(
+            dict(
+                Variable=vars,
+                Value=xrow,
+                Coefficient=brow,
+                text=text,
+                sign=np.sign(impact),
+                Impact=impact,
+            )
+        )
+        fig = px.bar(
+            df2.iloc[::-1, :],
+            x="Impact",
+            y="Variable",
+            color="sign",
+            text="text",
+            hover_data=["Value", "Coefficient"],
+            color_continuous_scale=["orange", "purple"],
+            range_x=(-xmax, xmax),
+            title=f"Impact for item {df.get('item', df.index)[hover]}",
+        )
+        fig.update_layout(
+            xaxis_title=f"Prediction: {pred} = {y:.{ydec}g}",
+            yaxis_title=None,
+            coloraxis_showscale=False,
+            hovermode="y",
+            **fig_layout,
+        )
+        fig.update_traces(
+            hovertemplate="<b>%{y}</b><br>Value=%{customdata[0]}<br>Coefficient=%{customdata[1]}<br>Impact=%{x}<extra></extra>"
+        )
         return fig
 
 
