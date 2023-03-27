@@ -39,7 +39,7 @@ def test_load_slisemap(sm_to_df):
     assert np.allclose(sm.get_L()[:, 0], df["L_0"])
     assert np.allclose(sm.get_Z(rotate=True)[:, 0], df["Z_0"])
     assert df.shape[0] == sm.n
-    assert df.shape[1] == 1 + sm.n + 7 + sm.m + sm.q + sm.o + sm.d - sm.intercept
+    assert df.shape[1] == 1 + sm.n + 7 + sm.m + sm.q + sm.o * 2 + sm.d - sm.intercept
     df2 = slisemap_to_dataframe(sm, max_n=80, index=False, losses=False, clusters=3)
     assert df2.shape[0] == 80
     sm.metadata.set_rows(range(1, sm.n + 1))
