@@ -740,16 +740,16 @@ class LinearImpact(dcc.Graph):
             return no_update
         Xs = [c for c in df.columns if c[0] == "X"]
         Bs = [c for c in df.columns if c[0] == "B"]
-        if len(pred) > 2:
-            Bs = [c for c in Xs if pred[2:] in c]
+        intercept = "Intercept" in Bs[-1]
+        if len(pred) > 2 and len(Bs) > len(Xs) + intercept:
+            Bs = [c for c in Bs if pred[2:] in c]
         xrow = df[Xs].iloc[hover]
         brow = df[Bs].iloc[hover]
         y = df[pred].iloc[hover]
         if len(Xs) == len(Bs):
             pass
-        elif len(Xs) + 1 == len(Bs) and "Intercept" in Bs[-1]:
+        elif len(Xs) + 1 == len(Bs) and intercept:
             xrow["X_Intercept"] = 1.0
-            pass
         else:
             return placeholder_figure(
                 f"Could not match variables to coefficients for {pred}"
