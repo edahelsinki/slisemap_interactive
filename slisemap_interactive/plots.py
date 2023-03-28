@@ -745,7 +745,6 @@ class LinearImpact(dcc.Graph):
             Bs = [c for c in Bs if pred[2:] in c]
         xrow = df[Xs].iloc[hover]
         brow = df[Bs].iloc[hover]
-        y = df[pred].iloc[hover]
         if len(Xs) == len(Bs):
             pass
         elif len(Xs) + 1 == len(Bs) and intercept:
@@ -754,6 +753,13 @@ class LinearImpact(dcc.Graph):
             return placeholder_figure(
                 f"Could not match variables to coefficients for {pred}"
             )
+        pred2 = "Y" + pred[1:]
+        if pred2 in df.columns:
+            y = df[[pred, pred2]].iloc[hover].to_numpy()
+            target = True
+        else:
+            y = df[pred].iloc[hover]
+            target = False
         vars = [c[2:] for c in xrow.index]
         xrow = xrow.to_numpy()
         brow = brow.to_numpy()
@@ -762,7 +768,7 @@ class LinearImpact(dcc.Graph):
         xdec = decimals - min(decimals - 1, max(0, xdec))
         bdec = int(np.max(np.log(np.abs(brow) + 1e-8)) // np.log(10))
         bdec = decimals - min(decimals - 1, max(0, bdec))
-        ydec = int(np.log(np.abs(y)) // np.log(10))
+        ydec = int(np.max(np.log(np.abs(y) + 1e-8)) // np.log(10))
         ydec = decimals - min(decimals - 1, max(0, ydec))
         idec = int(np.max(np.log(np.abs(impact) + 1e-8)) // np.log(10))
         idec = decimals - min(decimals - 1, max(0, idec))
@@ -792,8 +798,12 @@ class LinearImpact(dcc.Graph):
             range_x=(-xmax, xmax),
             title=f"Impact for item {df.get('item', df.index)[hover]}",
         )
+        if target:
+            xax = f"Prediction: {pred} = {y[0]:.{ydec}g},   Target: {pred2} = {y[1]:.{ydec}g}"
+        else:
+            xax = f"Prediction: {pred} = {y:.{ydec}g}"
         fig.update_layout(
-            xaxis_title=f"Prediction: {pred} = {y:.{ydec}g}",
+            xaxis_title=xax,
             yaxis_title=None,
             coloraxis_showscale=False,
             hovermode="y",

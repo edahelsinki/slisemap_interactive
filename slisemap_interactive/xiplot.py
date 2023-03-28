@@ -471,7 +471,7 @@ class SlisemapLinearImpactPlot(APlot):
                 cls.get_id(index), figure=placeholder_figure("Select an item to show")
             ),
             LabelledControls(
-                Target=PredictionDropdown(
+                Prediction=PredictionDropdown(
                     df,
                     id=cls.get_id(index, "pred"),
                     value=config.get("pred", None),
