@@ -168,3 +168,5 @@ poetry.toml
 .vscode
 *.sm
 *.tmp
+*.txt
+!*requitements*.txt

@@ -414,7 +414,7 @@ class EmbeddingPlot(dcc.Graph):
                     x=x,
                     y=y,
                     color=variable,
-                    title=f"Alternative locations for item {df.get('item', df.index)[hover]}",
+                    title=f"Alternative locations for item: {df.get('item', df.index)[hover]}",
                     opacity=np.isfinite(losses) * 0.8,
                     color_continuous_scale="Viridis_r",
                     labels={variable: "Local loss&nbsp;"},
@@ -575,7 +575,7 @@ class ModelBarPlot(dcc.Graph):
                 range_y=(-coefficient_range, coefficient_range),
                 color=coefficients,
                 color_discrete_sequence=px.colors.qualitative.Plotly,
-                title=f"Local model for item {df.get('item', df.index)[hover]}",
+                title=f"Local model for item: {df.get('item', df.index)[hover]}",
             )
             fig.update_layout(showlegend=False)
         elif is_cluster_or_categorical(df, cluster):
@@ -667,7 +667,7 @@ class DistributionPlot(dcc.Graph):
                     variable,
                     color=cluster,
                     color_discrete_sequence=px.colors.qualitative.Plotly,
-                    title=f"{variable} histogram",
+                    title=f"Histogram of {variable}",
                     category_orders={cluster: cats},
                 )
             else:
@@ -676,26 +676,28 @@ class DistributionPlot(dcc.Graph):
                 clusters = [str(g) for g in cats]
                 colors = px.colors.qualitative.Plotly
                 colors = colors * ((len(clusters) - 1) // len(colors) + 1)
-                lengths = [len(i) > 1 for i in df2.groups.values()]
-                if not all(lengths):
-                    data = [d for d, l in zip(data, lengths) if l]
-                    colors = [d for d, l in zip(colors, lengths) if l]
-                    clusters = [d for d, l in zip(clusters, lengths) if l]
+                filter = [not np.allclose(i[0], i) for i in df2.groups.values()]
+                if not all(filter):
+                    data = [d for d, l in zip(data, filter) if l]
+                    colors = [d for d, l in zip(colors, filter) if l]
+                    clusters = [d for d, l in zip(clusters, filter) if l]
                 fig = ff.create_distplot(data, clusters, show_hist=False, colors=colors)
                 fig.layout.yaxis.domain = [0.31, 1]
                 fig.layout.yaxis2.domain = [0, 0.29]
                 fig.update_layout(
-                    title=f"{variable} density plot",
+                    title=f"Density plot for {variable}",
                     legend=dict(title=cluster, traceorder="normal"),
                 )
         else:
             if plot_type == "Histogram":
-                fig = px.histogram(df, variable, title=f"{variable} histogram")
+                fig = px.histogram(df, variable, title=f"Histogram of {variable}")
             else:
                 fig = ff.create_distplot([df[variable]], [variable], show_hist=False)
                 fig.layout.yaxis.domain = [0.21, 1]
                 fig.layout.yaxis2.domain = [0, 0.19]
-                fig.update_layout(showlegend=False, title=f"{variable} density plot")
+                fig.update_layout(
+                    showlegend=False, title=f"Density plot for {variable}"
+                )
         if hover is not None:
             fig.add_vline(x=df[variable].iloc[hover])
         fig.update_layout(**fig_layout, xaxis_title=None, yaxis_title=None)
@@ -796,7 +798,7 @@ class LinearImpact(dcc.Graph):
             hover_data=["Value", "Coefficient"],
             color_continuous_scale=["orange", "purple"],
             range_x=(-xmax, xmax),
-            title=f"Impact for item {df.get('item', df.index)[hover]}",
+            title=f"Linear impact for item: {df.get('item', df.index)[hover]}",
         )
         if target:
             xax = f"Prediction: {pred} = {y[0]:.{ydec}g},   Target: {pred2} = {y[1]:.{ydec}g}"
