@@ -77,7 +77,10 @@ class SlisemapEmbeddingPlot(APlot):
 
     @classmethod
     def help(cls) -> str:
-        return "Plot the embedding of a Slisemap object"
+        return (
+            "Plot the embedding of a Slisemap object\n\n"
+            + 'Hover over a point when the color is based on "Local loss" to see alternative embeddings for that point.'
+        )
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
@@ -171,7 +174,12 @@ class SlisemapModelBarPlot(APlot):
 
     @classmethod
     def help(cls) -> str:
-        return "Local models from a Slisemap object in a bar plot"
+        return (
+            "Local models from a Slisemap object in a bar plot\n\n"
+            + "The coefficients from the local models are plotted in a bar plot. "
+            + "Hover over a point in an embedding to see the local model for that point. "
+            + "Or use clustering to show the mean models for the clusters."
+        )
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
@@ -240,7 +248,10 @@ class SlisemapModelMatrixPlot(APlot):
 
     @classmethod
     def help(cls) -> str:
-        return "Local models from a Slisemap object in a matrix plot"
+        return (
+            "Local models from a Slisemap object in a matrix plot\n\n"
+            + "Hover over a column to see information about that point in other plots."
+        )
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
@@ -295,9 +306,12 @@ class SlisemapDensityPlot(APlot):
     def name(cls) -> str:
         return "Slisemap density plot"
 
-    @classmethod
-    def help(cls) -> str:
-        return "Density plot for Slisemap objects"
+    # @classmethod
+    # def help(cls) -> str:
+    #     return (
+    #         "Density plot for Slisemap objects\n\n"
+    #         + "Use clustering to easily compare the distribution of the values between different clusters."
+    #     )
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
@@ -354,9 +368,9 @@ class SlisemapHistogramPlot(APlot):
     def name(cls) -> str:
         return "Slisemap histogram plot"
 
-    @classmethod
-    def help(cls) -> str:
-        return "Histogram for Slisemap objects"
+    # @classmethod
+    # def help(cls) -> str:
+    #     return "Histogram for Slisemap objects"
 
     @classmethod
     def register_callbacks(cls, app, df_from_store, df_to_store):
