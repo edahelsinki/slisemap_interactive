@@ -164,10 +164,11 @@ class BackgroundApp(JupyterDash):
         """
         if BackgroundApp.__app is None:
             app = BackgroundApp(**appargs)
+            app.run(**runargs)
         else:
             app = BackgroundApp.__app
-        if (app._display_url, app._display_port) not in app._server_threads:
-            app.run(**runargs)
+            if app._display_call is None:
+                app.run(**runargs)
         return app
 
     def run(self, *args, **kwargs):
@@ -184,10 +185,18 @@ class BackgroundApp(JupyterDash):
 
     def shutdown(self):
         """Shutdown the server"""
-        for thread in self._server_threads.values():
+        old_server = [
+            (host, port)
+            for host, port in self._server_threads.keys()
+            if port == self._display_port and host in self._display_url
+        ]
+        for key in old_server:
+            thread = self._server_threads.pop(key)
             thread.kill()
             thread.join()
-        self._server_threads.clear()
+        self._display_url = None
+        self._display_port = None
+        self._display_call = None
         if BackgroundApp.__app == self:
             BackgroundApp.__app = None
 
