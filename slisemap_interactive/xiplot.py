@@ -436,7 +436,7 @@ class SlisemapLinearImpactPlot(APlot):
             + 'Plot the "impact" of the variables on the prediction.'
             + " The impact is the variable value times the coefficient."
             + " If the local model is a linear model, then the sum of the impact equals the prediction."
-            + "\nThis plot assumes that the local model is a linear model."
+            + "\nThis plot assumes that the local model is a linear model and that the data has not been unscaled."
         )
 
     @classmethod
