@@ -22,7 +22,7 @@ from slisemap_interactive.plots import (
     DistributionPlot,
     EmbeddingPlot,
     JitterSlider,
-    LinearImpact,
+    LinearTerms,
     ModelBarPlot,
     ModelMatrixPlot,
     PredictionDropdown,
@@ -424,18 +424,17 @@ class SlisemapHistogramPlot(APlot):
         ]
 
 
-class SlisemapLinearImpactPlot(APlot):
+class SlisemapLinearTermsPlot(APlot):
     @classmethod
     def name(cls) -> str:
-        return "Slisemap linear impact plot"
+        return "Slisemap linear terms plot"
 
     @classmethod
     def help(cls) -> str:
         return (
-            "Linear impact plot for Slisemap objects\n\n"
-            + 'Plot the "impact" of the variables on the prediction.'
-            + " The impact is the variable value times the coefficient."
-            + " If the local model is a linear model, then the sum of the impact equals the prediction."
+            "Linear terms plot for Slisemap objects\n\n"
+            + 'Plot the "terms" of the linear models (variables times coefficients).'
+            + " If the local model is a linear model, then the sum of the terms equals the prediction."
             + "\nThis plot assumes that the local model is a linear model and that the data has not been unscaled."
         )
 
@@ -458,7 +457,7 @@ class SlisemapLinearImpactPlot(APlot):
                 return placeholder_figure(f"Could not find prediction '{pred}'")
             if hover is None:
                 hover = click
-            return try_twice(LinearImpact.plot, df, pred, hover, fig_layout=FIG_LAYOUT)
+            return try_twice(LinearTerms.plot, df, pred, hover, fig_layout=FIG_LAYOUT)
 
         PlotData.register_callback(
             cls.name(), app, dict(pred=Input(cls.get_id(MATCH, "pred"), "value"))

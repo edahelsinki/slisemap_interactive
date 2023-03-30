@@ -38,7 +38,7 @@ xiplot_plugin_barplot = "slisemap_interactive.xiplot:SlisemapModelBarPlot"
 xiplot_plugin_matrixplot = "slisemap_interactive.xiplot:SlisemapModelMatrixPlot"
 xiplot_plugin_densityplot = "slisemap_interactive.xiplot:SlisemapDensityPlot"
 xiplot_plugin_histogramplot = "slisemap_interactive.xiplot:SlisemapHistogramPlot"
-xiplot_plugin_impactplot = "slisemap_interactive.xiplot:SlisemapLinearImpactPlot"
+xiplot_plugin_termsplot = "slisemap_interactive.xiplot:SlisemapLinearTermsPlot"
 
 [project.scripts]
 slisemap_interactive = "slisemap_interactive.app:cli"

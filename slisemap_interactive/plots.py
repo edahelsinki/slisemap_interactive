@@ -713,7 +713,7 @@ class DistributionPlot(dcc.Graph):
         return fig
 
 
-class LinearImpact(dcc.Graph):
+class LinearTerms(dcc.Graph):
     def __init__(
         self, data: int, controls: str = "default", hover: str = "default", **kwargs
     ):
@@ -774,40 +774,40 @@ class LinearImpact(dcc.Graph):
         vars = [c[2:] for c in xrow.index]
         xrow = xrow.to_numpy()
         brow = brow.to_numpy()
-        impact = brow * xrow
+        terms = brow * xrow
         xdec = int(np.max(np.log(np.abs(xrow) + 1e-8)) // np.log(10))
         xdec = decimals - min(decimals - 1, max(0, xdec))
         bdec = int(np.max(np.log(np.abs(brow) + 1e-8)) // np.log(10))
         bdec = decimals - min(decimals - 1, max(0, bdec))
         ydec = int(np.max(np.log(np.abs(y) + 1e-8)) // np.log(10))
         ydec = decimals - min(decimals - 1, max(0, ydec))
-        idec = int(np.max(np.log(np.abs(impact) + 1e-8)) // np.log(10))
-        idec = decimals - min(decimals - 1, max(0, idec))
+        tdec = int(np.max(np.log(np.abs(terms) + 1e-8)) // np.log(10))
+        tdec = decimals - min(decimals - 1, max(0, tdec))
         text = [
-            f"X × B = {x:.{xdec}g} × {b:.{bdec}g} = {i:.{idec}g}"
-            for x, b, i in zip(xrow, brow, impact)
+            f"X × B = {x:.{xdec}g} × {b:.{bdec}g} = {i:.{tdec}g}"
+            for x, b, i in zip(xrow, brow, terms)
         ]
-        xmax = np.max(np.abs(impact)) * 1.01
+        xmax = np.max(np.abs(terms)) * 1.01
         df2 = pd.DataFrame(
             dict(
                 Variable=vars,
                 Value=xrow,
                 Coefficient=brow,
                 text=text,
-                sign=np.sign(impact),
-                Impact=impact,
+                sign=np.sign(terms),
+                Term=terms,
             )
         )
         fig = px.bar(
             df2.iloc[::-1, :],
-            x="Impact",
+            x="Term",
             y="Variable",
             color="sign",
             text="text",
             hover_data=["Value", "Coefficient"],
             color_continuous_scale=["orange", "purple"],
             range_x=(-xmax, xmax),
-            title=f"Linear impact for item: {df.get('item', df.index)[hover]}",
+            title=f"Linear terms for item: {df.get('item', df.index)[hover]}",
         )
         if target:
             xax = f"Prediction: {pred} = {y[0]:.{ydec}g},   Target: {pred2} = {y[1]:.{ydec}g}"
@@ -821,7 +821,7 @@ class LinearImpact(dcc.Graph):
             **fig_layout,
         )
         fig.update_traces(
-            hovertemplate="<b>%{y}</b><br>Value=%{customdata[0]}<br>Coefficient=%{customdata[1]}<br>Impact=%{x}<extra></extra>"
+            hovertemplate="<b>%{y}</b><br>Value=%{customdata[0]}<br>Coefficient=%{customdata[1]}<br>Term=%{x}<extra></extra>"
         )
         return fig
 
