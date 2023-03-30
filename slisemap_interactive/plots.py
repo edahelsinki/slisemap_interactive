@@ -668,6 +668,7 @@ class DistributionPlot(dcc.Graph):
                     color=cluster,
                     color_discrete_sequence=px.colors.qualitative.Plotly,
                     title=f"Histogram of {variable}",
+                    marginal="violin",
                     category_orders={cluster: cats},
                 )
             else:
@@ -682,12 +683,20 @@ class DistributionPlot(dcc.Graph):
                     colors = [d for d, l in zip(colors, filter) if l]
                     clusters = [d for d, l in zip(clusters, filter) if l]
                 fig = ff.create_distplot(data, clusters, show_hist=False, colors=colors)
-                fig.layout.yaxis.domain = [0.31, 1]
-                fig.layout.yaxis2.domain = [0, 0.29]
                 fig.update_layout(
                     title=f"Density plot for {variable}",
                     legend=dict(title=cluster, traceorder="normal"),
                 )
+            if len(cats) < 4:
+                fig.layout.yaxis.domain = [0.21, 1]
+                fig.layout.yaxis2.domain = [0, 0.19]
+            else:
+                fig.layout.yaxis.domain = [0.31, 1]
+                fig.layout.yaxis2.domain = [0, 0.29]
+            fig.layout.yaxis.showgrid = True
+            fig.layout.yaxis2.showgrid = True
+            fig.layout.yaxis.showticklabels = False
+            fig.layout.yaxis2.showticklabels = True
         else:
             if plot_type == "Histogram":
                 fig = px.histogram(df, variable, title=f"Histogram of {variable}")
