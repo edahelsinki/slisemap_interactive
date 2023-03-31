@@ -4,20 +4,22 @@ Functions for generating dynamic plots.
 
 from typing import Any, Callable, Dict, Iterable, Literal, Optional, Sequence, get_args
 
-from dash import Dash, html, dcc, Input, Output, ctx, MATCH, ALL, no_update
+import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
+import plotly.graph_objects as go
+import plotly.io as pio
+from dash import ALL, MATCH, Dash, Input, Output, ctx, dcc, html, no_update
+from pandas.api.types import is_bool_dtype, is_categorical_dtype, is_object_dtype
 from plotly.graph_objects import Figure
-import pandas as pd
-import numpy as np
-from pandas.api.types import is_categorical_dtype, is_object_dtype, is_bool_dtype
 
 from slisemap_interactive.load import get_L_column
 
-DEFAULT_FIG_LAYOUT = dict(
-    margin=dict(l=10, r=10, t=30, b=20, autoexpand=True),
-    template="plotly_white",
-    uirevision=True,
+PLOTLY_TEMPLATE = "slisemap_interactive"
+DEFAULT_TEMPLATE = "plotly_white+" + PLOTLY_TEMPLATE
+pio.templates[PLOTLY_TEMPLATE] = go.layout.Template(
+    layout=dict(margin=dict(l=10, r=10, t=30, b=20, autoexpand=True), uirevision=True)
 )
 
 
@@ -367,7 +369,7 @@ class EmbeddingPlot(dcc.Graph):
         jitter: float = 0.0,
         hover: Optional[int] = None,
         seed: int = 42,
-        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+        template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
         def dfmod(var):
             df2 = pd.DataFrame(
@@ -446,7 +448,7 @@ class EmbeddingPlot(dcc.Graph):
             )
             fig.add_traces(trace.data)
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
-        fig.update_layout(**fig_layout, xaxis_title=None, yaxis_title=None)
+        fig.update_layout(template=template, xaxis_title=None, yaxis_title=None)
         return fig
 
 
@@ -492,7 +494,7 @@ class ModelMatrixPlot(dcc.Graph):
         coefficients: Sequence[str],
         sort_by: Optional[str] = None,
         hover: Optional[int] = None,
-        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+        template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
         if sort_by is None:
             order_to_sorted = np.arange(df.shape[0])
@@ -510,9 +512,9 @@ class ModelMatrixPlot(dcc.Graph):
             color_continuous_scale="RdBu",
             y=coefficients,
             x=sorted_to_string,
+            template=template,
         )
         fig.update_xaxes(showticklabels=False)
-        fig.update_layout(**fig_layout)
         fig.update_traces(hovertemplate="%{y} = %{z}<extra></extra>")
         if hover is not None:
             fig.add_vline(x=np.nonzero(order_to_sorted == hover)[0][0])
@@ -566,7 +568,7 @@ class ModelBarPlot(dcc.Graph):
         cluster: Optional[str] = None,
         grouping: GROUPING_OPTIONS = "Variables",
         hover: Optional[int] = None,
-        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+        template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
         coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
         if hover is not None:
@@ -615,7 +617,7 @@ class ModelBarPlot(dcc.Graph):
             )
             fig.update_layout(showlegend=False)
         fig.update_xaxes(title=None)
-        fig.update_layout(**fig_layout, yaxis_title="Coefficient")
+        fig.update_layout(template=template, yaxis_title="Coefficient")
         fig.update_traces(hovertemplate="%{x} = %{y}<extra></extra>")
         return fig
 
@@ -657,7 +659,7 @@ class DistributionPlot(dcc.Graph):
         plot_type: PLOT_TYPE_OPTIONS = "Histogram",
         cluster: Optional[str] = None,
         hover: Optional[int] = None,
-        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+        template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
         if is_cluster_or_categorical(df, cluster):
             cats = get_categories(df[cluster])
@@ -709,7 +711,7 @@ class DistributionPlot(dcc.Graph):
                 )
         if hover is not None:
             fig.add_vline(x=df[variable].iloc[hover])
-        fig.update_layout(**fig_layout, xaxis_title=None, yaxis_title=None)
+        fig.update_layout(template=template, xaxis_title=None, yaxis_title=None)
         return fig
 
 
@@ -745,7 +747,7 @@ class LinearTerms(dcc.Graph):
         pred: str,
         hover: Optional[int] = None,
         decimals: int = 3,
-        fig_layout: Dict[str, Any] = DEFAULT_FIG_LAYOUT,
+        template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
         if hover is None:
             return no_update
@@ -808,17 +810,14 @@ class LinearTerms(dcc.Graph):
             color_continuous_scale=["orange", "purple"],
             range_x=(-xmax, xmax),
             title=f"Linear terms for item: {df.get('item', df.index)[hover]}",
+            template=template,
         )
         if target:
             xax = f"Prediction: {pred} = {y[0]:.{ydec}g},   Target: {pred2} = {y[1]:.{ydec}g}"
         else:
             xax = f"Prediction: {pred} = {y:.{ydec}g}"
         fig.update_layout(
-            xaxis_title=xax,
-            yaxis_title=None,
-            coloraxis_showscale=False,
-            hovermode="y",
-            **fig_layout,
+            xaxis_title=xax, yaxis_title=None, coloraxis_showscale=False, hovermode="y"
         )
         fig.update_traces(
             hovertemplate="<b>%{y}</b><br>Value=%{customdata[0]}<br>Coefficient=%{customdata[1]}<br>Term=%{x}<extra></extra>"
