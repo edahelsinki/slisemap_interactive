@@ -52,5 +52,5 @@ This takes care of the namespace resolution and also activates the "[entry_point
 To do an editable installation run:
 
 ```bash
-pip install --editable .
+pip install --editable ".[dev]"
 ```

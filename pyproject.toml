@@ -26,6 +26,10 @@ dependencies = [
 ]
 
 
+[project.optional-dependencies]
+xiplot = ["xiplot"]
+dev = ["pytest", "black[jupyter]", "pylint", "jupyter", "IPython"]
+
 [project.urls]
 github = "https://github.com/edahelsinki/slisemap_interactive"
 
