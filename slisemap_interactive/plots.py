@@ -2,7 +2,17 @@
 Functions for generating dynamic plots.
 """
 
-from typing import Any, Callable, Dict, Iterable, Literal, Optional, Sequence, get_args
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    get_args,
+)
 
 import numpy as np
 import pandas as pd
@@ -126,6 +136,34 @@ def get_categories(series: pd.Series) -> Iterable[str]:
         return un
 
 
+def get_variables(
+    df: pd.DataFrame, clusters: bool = False, loss_first: bool = True
+) -> List[str]:
+    """Get a list of generally plottable column names (skips the L and Z matrices).
+
+    Args:
+        df: Slisemap converted to dataframe.
+        clusters: Include cluster columns. Defaults to False.
+        loss_first: Move the local loss first. Defaults to True.
+
+    Returns:
+        list of column names.
+    """
+    vars = [
+        c
+        for c in df.columns
+        if c[:2] != "L_"
+        and c[:3] != "LT_"
+        and c[:2] != "Z_"
+        and (not clusters or "cluster" not in c.lower())
+    ]
+    if loss_first:
+        vars2 = [v for v in vars if v != "Local loss"]
+        if len(vars) - 1 == len(vars2):
+            vars = ["Local loss"] + vars2
+    return vars
+
+
 def placeholder_figure(text: str) -> Dict[str, Any]:
     """Display a placeholder text instead of a graph.
     This can be used in a "callback" function when a graph cannot be rendered.
@@ -212,7 +250,7 @@ class VariableDropdown(dcc.Dropdown):
         value: Optional[str] = None,
         **kwargs,
     ):
-        vars = ["Local loss"] + [c for c in df.columns if c[0] in ("X", "Y", "B", "Ŷ")]
+        vars = get_variables(df)
         if value is None or value not in vars:
             value = vars[0]
         if id is None:
