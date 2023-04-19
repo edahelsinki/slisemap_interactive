@@ -38,19 +38,19 @@ def test_datacache(dataframe):
 def test_first_not_none():
     assert first_not_none([]) is None
     assert first_not_none([None]) is None
-    assert first_not_none([1]) is 1
-    assert first_not_none([1, 2]) is 1
-    assert first_not_none([None, 2]) is 2
-    assert first_not_none([3, 2], lambda x: x**2) is 9
+    assert first_not_none([1]) == 1
+    assert first_not_none([1, 2]) == 1
+    assert first_not_none([None, 2]) == 2
+    assert first_not_none([3, 2], lambda x: x**2) == 9
     assert first_not_none([3, 2], lambda x: None) is None
-    assert first_not_none([3, 2], lambda x: None if x > 2 else 2) is 2
+    assert first_not_none([3, 2], lambda x: None if x > 2 else 2) == 2
 
 
 def test_embedding(dataframe):
-    graph = EmbeddingPlot(0)
-    ctrl1 = VariableDropdown(dataframe, id="")
-    ctrl2 = JitterSlider(id="")
-    ctrl3 = ClusterDropdown(dataframe, id="")
+    EmbeddingPlot(0)
+    VariableDropdown(dataframe, id="")
+    JitterSlider(id="")
+    ClusterDropdown(dataframe, id="")
     assert EmbeddingPlot.get_hover_index(None) is None
     assert EmbeddingPlot.get_hover_index({"points": [{"customdata": [1]}]}) == 1
     EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Y_0", 0.2, 2)
@@ -61,7 +61,7 @@ def test_embedding(dataframe):
 
 
 def test_matrix(dataframe):
-    graph = ModelMatrixPlot(0)
+    ModelMatrixPlot(0)
     assert ModelMatrixPlot.get_hover_index(None) is None
     assert ModelMatrixPlot.get_hover_index({"points": [{"x": 1}]}) == 1
     ModelMatrixPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, 2)
@@ -71,9 +71,9 @@ def test_matrix(dataframe):
 
 
 def test_bar(dataframe):
-    graph = ModelBarPlot(0)
-    ctrl1 = BarGroupingDropdown(id="")
-    ctrl2 = ClusterDropdown(dataframe, id="")
+    ModelBarPlot(0)
+    BarGroupingDropdown(id="")
+    ClusterDropdown(dataframe, id="")
     ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, "Variables", 2)
     ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], None, "Variables", None)
     ModelBarPlot.plot(dataframe, ["B_0", "B_1", "B_2"], "No Cluster", "Variables", 2)
@@ -85,10 +85,10 @@ def test_bar(dataframe):
 
 
 def test_dist(dataframe):
-    graph = DistributionPlot(0)
-    ctrl1 = VariableDropdown(dataframe, id="")
-    ctrl2 = DensityTypeDropdown(id="")
-    ctrl3 = ClusterDropdown(dataframe, id="")
+    DistributionPlot(0)
+    VariableDropdown(dataframe, id="")
+    DensityTypeDropdown(id="")
+    ClusterDropdown(dataframe, id="")
     DistributionPlot.plot(dataframe, "Y_0", "Histogram", None, 2)
     DistributionPlot.plot(dataframe, "Y_0", "Histogram", "cls", 2)
     DistributionPlot.plot(dataframe, "Y_0", "Density", None, 2)

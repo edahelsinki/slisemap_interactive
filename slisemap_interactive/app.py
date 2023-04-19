@@ -81,7 +81,7 @@ def shutdown():
     """
     try:
         app = BackgroundApp.__app
-    except:
+    except Exception:
         app = None
     if app is not None:
         app.shutdown()
@@ -251,5 +251,5 @@ def _can_display_iframe() -> bool:
             return False  # IPython console
         else:
             return False  # Unknown
-    except:
+    except Exception:
         return False  # not even IPython

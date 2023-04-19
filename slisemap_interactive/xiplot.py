@@ -222,7 +222,7 @@ class SlisemapModelBarPlot(APlot):
             Input(cls.get_id(MATCH, "cluster"), "value"),
             prevent_initial_call=False,
         )
-        def callback(cluster):
+        def callback_disabled(cluster):
             return cluster is None
 
         PlotData.register_callback(

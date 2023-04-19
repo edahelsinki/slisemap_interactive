@@ -123,9 +123,10 @@ def slisemap_to_dataframe(
     if clusters > 1:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", FutureWarning)
-            cl = lambda i: sm.get_model_clusters(i)[0][ss]
             clusters = {
-                f"Clusters {i}": pd.Series(cl(i), dtype="category")
+                f"Clusters {i}": pd.Series(
+                    sm.get_model_clusters(i)[0][ss], dtype="category"
+                )
                 for i in range(2, clusters + 1)
             }
             dfs.append(pd.DataFrame(clusters))
@@ -157,16 +158,16 @@ def get_L_column(df: pd.DataFrame, index: Optional[int] = None) -> Optional[np.n
         Loss column.
     """
     rows = df.get("item", df.index)
-    l = df.get(f"L_{rows[index]}", None)
-    if l is not None:
-        return l
+    col = df.get(f"L_{rows[index]}", None)
+    if col is not None:
+        return col
     lts = {k: i for i, k in enumerate(df) if k[:3] == "LT_"}
     if len(lts) == 0:
         return None
     loss = np.repeat(np.nan, df.shape[0])
     loss[index] = df["Local loss"].iloc[index]
     for i, row in enumerate(rows):
-        l = lts.get(f"LT_{row}", -1)
-        if l >= 0:
-            loss[i] = df.iloc[index, l]
+        col = lts.get(f"LT_{row}", -1)
+        if col >= 0:
+            loss[i] = df.iloc[index, col]
     return loss

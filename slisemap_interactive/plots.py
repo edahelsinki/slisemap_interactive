@@ -46,7 +46,7 @@ def try_twice(fn: Callable[[], Any], *args: Any, **kwargs: Any) -> Any:
     """
     try:
         return fn(*args, **kwargs)
-    except:
+    except Exception:
         return fn(*args, **kwargs)
 
 
@@ -594,7 +594,7 @@ class ModelBarPlot(dcc.Graph):
             Output(BarGroupingDropdown.generate_id(MATCH, MATCH), "disabled"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
         )
-        def callback(cluster):
+        def callback_disabled(cluster):
             return cluster is None
 
     GROUPING_OPTIONS = Literal["Variables", "Clusters"]
@@ -719,9 +719,9 @@ class DistributionPlot(dcc.Graph):
                 colors = colors * ((len(clusters) - 1) // len(colors) + 1)
                 filter = [not np.allclose(i[0], i) for i in df2.groups.values()]
                 if not all(filter):
-                    data = [d for d, l in zip(data, filter) if l]
-                    colors = [d for d, l in zip(colors, filter) if l]
-                    clusters = [d for d, l in zip(clusters, filter) if l]
+                    data = [d for d, f in zip(data, filter) if f]
+                    colors = [c for c, f in zip(colors, filter) if f]
+                    clusters = [c for c, f in zip(clusters, filter) if f]
                 fig = ff.create_distplot(data, clusters, show_hist=False, colors=colors)
                 fig.update_layout(
                     title=f"Density plot for {variable}",
