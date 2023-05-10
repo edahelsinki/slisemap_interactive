@@ -21,6 +21,7 @@ from slisemap_interactive.plots import (
     PLOTLY_TEMPLATE,
     BarGroupingDropdown,
     ClusterDropdown,
+    ContourCheckbox,
     DistributionPlot,
     EmbeddingPlot,
     JitterSlider,
@@ -48,7 +49,12 @@ class LabelledControls(FlexRow):
             kwargs: Additional key word arguments forwarded to `FlexRow`
         """
         children = [
-            html.Div([lab, ctrl], style={"flex": "1", "minWidth": "12rem"})
+            html.Div(
+                [lab, ctrl],
+                style=None
+                if isinstance(ctrl, dcc.Checklist)
+                else {"flex": "1", "minWidth": "12rem"},
+            )
             for lab, ctrl in controls.items()
         ]
         super().__init__(*children, **kwargs)
@@ -90,12 +96,13 @@ class SlisemapEmbeddingPlot(APlot):
             Input(ID_DATAFRAME, "data"),
             Input(cls.get_id(MATCH, "variable"), "value"),
             Input(cls.get_id(MATCH, "cluster"), "value"),
+            Input(cls.get_id(MATCH, "contours"), "value"),
             Input(cls.get_id(MATCH, "jitter"), "value"),
             Input(ID_HOVERED, "data"),
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, variable, cluster, jitter, hover, click, template):
+        def callback(df, variable, cluster, contours, jitter, hover, click, template):
             df = df_from_store(df)
             if cluster in df.columns:
                 variable = cluster
@@ -114,6 +121,7 @@ class SlisemapEmbeddingPlot(APlot):
                 x,
                 y,
                 variable,
+                contours,
                 jitter,
                 hover,
                 template=f"{template}+{PLOTLY_TEMPLATE}",
@@ -163,6 +171,12 @@ class SlisemapEmbeddingPlot(APlot):
                     df,
                     id=cls.get_id(index, "cluster"),
                     value=config.get("cluster", None),
+                ),
+                Density=ContourCheckbox(
+                    id=cls.get_id(index, "contours"),
+                    value=config.get("contours", False),
+                    labelClassName="button",
+                    labelStyle={"display": "inline-block"},
                 ),
                 Jitter=JitterSlider(
                     id=cls.get_id(index, "jitter"),

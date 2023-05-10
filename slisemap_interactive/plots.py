@@ -11,6 +11,8 @@ from typing import (
     Literal,
     Optional,
     Sequence,
+    Tuple,
+    Union,
     get_args,
 )
 
@@ -23,6 +25,7 @@ import plotly.io as pio
 from dash import ALL, MATCH, Dash, Input, Output, ctx, dcc, html, no_update
 from pandas.api.types import is_bool_dtype, is_categorical_dtype, is_object_dtype
 from plotly.graph_objects import Figure
+from scipy.stats import gaussian_kde
 
 from slisemap_interactive.load import get_L_column
 
@@ -191,6 +194,31 @@ def placeholder_figure(text: str) -> Dict[str, Any]:
     }
 
 
+def kde2d(
+    x: np.ndarray, y: np.ndarray, binwidth: Union[None, str, float] = None, n: int = 20
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Calculate a gaussian kernel density grid.
+
+    Args:
+        x: Variable 1.
+        y: Variable 2.
+        binwidth: Bin width or binwidth method. Defaults to None.
+        n: Grid size. Defaults to 20.
+
+    Returns:
+        x: Grid x.
+        y: Grid y.
+        z: Grid z (density).
+    """
+    gx = np.linspace(np.min(x), np.max(x), n)
+    gy = np.linspace(np.min(y), np.max(y), n)
+    gx, gy = np.meshgrid(gx, gy)
+    gx = gx.ravel()
+    gy = gy.ravel()
+    gauss = gaussian_kde(np.stack((x, y), 0), binwidth)
+    return gx, gy, gauss(np.stack((gx, gy), 0))
+
+
 class DataCache(dict):
     """Class for holding datasets."""
 
@@ -218,9 +246,9 @@ class JitterSlider(html.Div):
     def __init__(
         self,
         data: Optional[int] = None,
+        controls: str = "default",
         scale: float = 0.2,
         steps: int = 5,
-        controls: str = "default",
         id: Optional[Any] = None,
         value: float = 0.0,
         **kwargs,
@@ -357,6 +385,25 @@ class PredictionDropdown(dcc.Dropdown):
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
+class ContourCheckbox(dcc.Checklist):
+    def __init__(
+        self,
+        data: Optional[int] = None,
+        controls: str = "default",
+        id: Optional[Any] = None,
+        value: bool = False,
+        **kwargs,
+    ):
+        if id is None:
+            assert data is not None and controls is not None
+            id = self.generate_id(data, controls)
+        super().__init__(["Contours"], ["Contours"] if value else [], id=id, **kwargs)
+
+    @classmethod
+    def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        return {"type": cls.__name__, "data": data, "controls": controls}
+
+
 class EmbeddingPlot(dcc.Graph):
     def __init__(
         self, data: int, controls: str = "default", hover: str = "default", **kwargs
@@ -385,10 +432,11 @@ class EmbeddingPlot(dcc.Graph):
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(JitterSlider.generate_id(MATCH, MATCH), "value"),
             Input(VariableDropdown.generate_id(MATCH, MATCH), "value"),
+            Input(ContourCheckbox.generate_id(MATCH, MATCH), "value"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def callback(jitter, variable, cluster, hover):
+        def callback(jitter, variable, contour, cluster, hover):
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             dimensions = filter(lambda c: c[:2] == "Z_", df.columns)
@@ -396,7 +444,7 @@ class EmbeddingPlot(dcc.Graph):
             y = next(dimensions)
             if cluster in df.columns:
                 variable = cluster
-            return cls.plot(df, x, y, variable, jitter, hover, seed=data_key)
+            return cls.plot(df, x, y, variable, contour, jitter, hover, seed=data_key)
 
     @staticmethod
     def plot(
@@ -404,6 +452,7 @@ class EmbeddingPlot(dcc.Graph):
         x: str,
         y: str,
         variable: str,
+        contours: bool = True,
         jitter: float = 0.0,
         hover: Optional[int] = None,
         seed: int = 42,
@@ -476,6 +525,21 @@ class EmbeddingPlot(dcc.Graph):
             )
         if ll:
             fig.update_traces(hovertemplate=None, hoverinfo="none")
+        if contours:
+            kdex, kdey, kdez = kde2d(df[x], df[y], 0.25, 40)
+            fig.add_contour(
+                x=kdex,
+                y=kdey,
+                z=kdez,
+                contours_coloring="none",
+                ncontours=6,
+                showlegend=False,
+                hoverinfo="skip",
+                hovertemplate=None,
+                name="Contours",
+                line_color="grey",
+                line_width=1,
+            )
         if hover is not None:
             trace = px.scatter(df2.iloc[[hover]], x=x, y=y).update_traces(
                 hoverinfo="skip",

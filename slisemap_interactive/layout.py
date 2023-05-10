@@ -8,6 +8,7 @@ import pandas as pd
 from slisemap_interactive.plots import (
     BarGroupingDropdown,
     ClusterDropdown,
+    ContourCheckbox,
     EmbeddingPlot,
     DensityTypeDropdown,
     JitterSlider,
@@ -60,13 +61,12 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "marginBottom": "0.5rem",
     }
     style_header = {
-        "flex": "1 1",
         "paddingLeft": "0.3rem",
         "paddingRight": "0.3rem",
         "marginTop": "0px",
         "marginBottom": "0px",
     }
-    style_controls = {"width": "14em"}
+    style_controls = {"minWidth": "12em"}
     style_plot_area = {
         "display": "flex",
         "flexDirection": "row",
@@ -82,8 +82,10 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
     hover_index = HoverData(data_key)
     topbar = [
         html.H1(children="Interactive Slisemap", style=style_header),
+        html.Div(style={"flex": "1"}),
         VariableDropdown(df, data_key, style=style_controls),
         ClusterDropdown(df, data_key, style=style_controls),
+        ContourCheckbox(data_key, style={"paddingRight": "0.3rem"}),
         JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
         BarGroupingDropdown(data_key, style=style_controls),
         DensityTypeDropdown(data_key, style=style_controls),

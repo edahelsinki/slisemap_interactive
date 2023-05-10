@@ -12,7 +12,8 @@ def dataframe():
     df["B_0"] = df["B_1"] = df["B_2"] = [0.3, 0.2, 0.1, 0.3, 0.2, 0.1]
     df["X_0"] = df["X_1"] = [1, 2, 3, 1, 2, 3]
     df["Y_0"] = [4, 6, -2, -4, 4, 0]
-    df["Z_0"] = df["Z_1"] = [1, 2, 3, 3, 1, 2]
+    df["Z_0"] = [3, 2, 3, 3, 1, 3]
+    df["Z_1"] = [1, 2, 3, 3, 1, 2]
     return df
 
 
@@ -49,15 +50,16 @@ def test_first_not_none():
 def test_embedding(dataframe):
     EmbeddingPlot(0)
     VariableDropdown(dataframe, id="")
+    ContourCheckbox(id="")
     JitterSlider(id="")
     ClusterDropdown(dataframe, id="")
     assert EmbeddingPlot.get_hover_index(None) is None
     assert EmbeddingPlot.get_hover_index({"points": [{"customdata": [1]}]}) == 1
-    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Y_0", 0.2, 2)
-    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", 0.2, 2)
-    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", 0.0, None)
-    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", 0.0, 2)
-    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", 0.2, None)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Y_0", True, 0.2, 2)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", False, 0.2, 2)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "cls", True, 0.0, None)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", True, 0.0, 2)
+    EmbeddingPlot.plot(dataframe, "Z_0", "Z_1", "Local loss", False, 0.2, None)
 
 
 def test_matrix(dataframe):
