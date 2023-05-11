@@ -12,7 +12,13 @@ from dash import Dash
 from jupyter_dash import JupyterDash
 
 from slisemap_interactive.layout import register_callbacks, page_with_all_plots
-from slisemap_interactive.load import Slisemap, slisemap_to_dataframe, save_dataframe
+from slisemap_interactive.load import (
+    DEFAULT_MAX_L,
+    DEFAULT_MAX_N,
+    Slisemap,
+    load,
+    save_dataframe,
+)
 from slisemap_interactive.plots import DataCache
 
 
@@ -32,15 +38,26 @@ def cli():
     )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     parser.add_argument(
-        "-n",
-        type=int,
-        default=3000,
-        help="Maximum number of items to extract from the Slisemap object (Default: 3000)",
-    )
-    parser.add_argument(
         "-e",
         "--export",
         help="Do not run the application, instead export the Slisemap object as a dataframe",
+        metavar="PATH",
+    )
+    parser.add_argument(
+        "-n",
+        "--max-n",
+        type=int,
+        default=DEFAULT_MAX_N,
+        help=f"Maximum number of items to extract from the Slisemap object (Default: {DEFAULT_MAX_N})",
+        metavar="N",
+    )
+    parser.add_argument(
+        "-l",
+        "--max-losses",
+        type=int,
+        default=DEFAULT_MAX_L,
+        help=f"Maximum number of columns from the loss matrix to export (Default: {DEFAULT_MAX_L})",
+        metavar="L",
     )
     parser.add_argument("-p", "--port", help="Port used to serve the application")
     parser.add_argument("--host", help="Host IP used to serve the application")
@@ -52,7 +69,7 @@ def cli():
             break
     if args.export:
         print("Loading", path)
-        df = slisemap_to_dataframe(path, max_n=args.n)
+        df = load(path, index=False, losses=args.max_losses, max_n=args.max_n)
         print("Exporting to", args.export)
         save_dataframe(df, args.export)
         return
@@ -68,7 +85,7 @@ def cli():
 
 def plot(
     slisemap: Union[pd.DataFrame, Slisemap, str, PathLike],
-    max_n: int = 3000,
+    max_n: int = DEFAULT_MAX_N,
     width: Union[str, int] = "100%",
     height: Union[str, int] = 1000,
     mode: Literal[None, "inline", "external", "jupyterlab"] = None,
@@ -80,8 +97,8 @@ def plot(
     This function automatically starts a server in the background.
 
     Args:
-        slisemap: Slisemap object, Dataframe, or path to a Slisemap object.
-        max_n: The maximum number of items to extract from the Slisemap object. Defaults to 3000.
+        slisemap: Slisemap object, dataframe, or path to a Slisemap object.
+        max_n: The maximum number of items to extract from the Slisemap object. Defaults to 5000.
         width: Width of the iframe (if `mode="inline"`). Defaults to "100%".
         height: Height of the iframe (if `mode="inline"`). Defaults to 1000.
         mode: How should the plot be displayed (see `jupyter_dash.JupyterDash().run_server()`). Defaults to "inline" in a notebook and to "external" otherwise.
@@ -114,21 +131,22 @@ class ForegroundApp(Dash):
         register_callbacks(self, self.data_cache)
 
     def set_data(
-        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], max_n: int = 3000
+        self,
+        slisemap: Union[pd.DataFrame, Slisemap, str, PathLike],
+        max_n: int = DEFAULT_MAX_N,
     ) -> "ForegroundApp":
         """Set which data the app should show new connections.
         Old data is cached so that old connections continue working.
         For existing connections, refresh the page to get the latest data.
 
         Args:
-            slisemap: Slisemap object, Dataframe, or path to a Slisemap object.
-            max_n: The maximum number of items to extract from the Slisemap object. Defaults to 3000.
+            slisemap: Slisemap object, dataframe, or path to a Slisemap object.
+            max_n: The maximum number of items to extract from the Slisemap object. Defaults to 5000.
 
         Returns:
             self for chaining.
         """
-        if not isinstance(slisemap, pd.DataFrame):
-            slisemap = slisemap_to_dataframe(slisemap, max_n=max_n)
+        slisemap = load(slisemap, max_n=max_n)
         key = self.data_cache.add_data(slisemap)
         self.layout = page_with_all_plots(slisemap, key)
         return self
@@ -150,21 +168,22 @@ class BackgroundApp(JupyterDash):
         register_callbacks(self, self.data_cache)
 
     def set_data(
-        self, slisemap: Union[pd.DataFrame, Slisemap, str, PathLike], max_n: int = 3000
+        self,
+        slisemap: Union[pd.DataFrame, Slisemap, str, PathLike],
+        max_n: int = DEFAULT_MAX_N,
     ) -> "BackgroundApp":
         """Set which data the app should show new connections.
         Old data is cached so that old connections continue working.
         For existing connections, refresh the page to get the latest data.
 
         Args:
-            slisemap: Slisemap object, Dataframe, or path to a Slisemap object.
-            max_n: The maximum number of items to extract from the Slisemap object. Defaults to 3000.
+            slisemap: Slisemap object, dataframe, or path to a Slisemap object.
+            max_n: The maximum number of items to extract from the Slisemap object. Defaults to 5000.
 
         Returns:
             self for chaining.
         """
-        if not isinstance(slisemap, pd.DataFrame):
-            slisemap = slisemap_to_dataframe(slisemap, max_n=max_n)
+        slisemap = load(slisemap, max_n=max_n)
         key = self.data_cache.add_data(slisemap)
         self.layout = page_with_all_plots(slisemap, key)
         return self

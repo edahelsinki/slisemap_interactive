@@ -27,6 +27,11 @@ except ImportError:
             return Slisemap.load(*args, **kwargs)
 
 
+# Defaults for subsampling the Slisemap object
+DEFAULT_MAX_N = 5000
+DEFAULT_MAX_L = 250
+
+
 def subsample(Z: np.ndarray, n: int, clusters: Optional[int] = None) -> np.ndarray:
     """Get indices for subsampling.
     Optionally uses k-means clustering to ensure inclusion of rarer data items.
@@ -159,6 +164,46 @@ def slisemap_to_dataframe(
     return df
 
 
+def _extract_extension(path: Union[str, PathLike]) -> str:
+    if isinstance(path, str):
+        extension = path
+    else:
+        extension = Path(path).name
+    return extension.split(".")[-1]
+
+
+def load(
+    path: Union[Slisemap, pd.DataFrame, str, PathLike],
+    extension: Optional[str] = None,
+    **kwargs,
+) -> pd.DataFrame:
+    """Load a dataframe or Slisemap object (into a dataframe).
+
+    Args:
+        path: Slisemap object, dataframe, path to dataframe, or path to Slisemap object.
+        extension: File type (taken from the path if None). Defaults to None.
+        **kwargs: Additional args to `slisemap_to_dataframe` when converting Slisemap objects to Dataframes.
+
+    Returns:
+        Dataframe (converted from Slisemap object if necessary).
+    """
+    if isinstance(path, pd.DataFrame):
+        return path
+    if isinstance(path, Slisemap):
+        return slisemap_to_dataframe(path, **kwargs)
+    if extension is None:
+        extension = _extract_extension(path)
+    if extension == "csv":
+        return pd.read_csv(path)
+    if extension == "parquet" or extension == "pq":
+        return pd.read_parquet(path)
+    if extension == "json":
+        return pd.read_json(path)
+    if extension == "feather" or extension == "ft":
+        return pd.read_feather(path)
+    return slisemap_to_dataframe(path, **kwargs)
+
+
 def save_dataframe(df: pd.DataFrame, path: PathLike, extension: Optional[str] = None):
     """Save dataframe to a file.
     Supports csv, json, feather, and parquet.
@@ -172,21 +217,18 @@ def save_dataframe(df: pd.DataFrame, path: PathLike, extension: Optional[str] = 
         NotImplementedError: For unknown file extensions.
     """
     if extension is None:
-        if isinstance(path, str):
-            extension = path
-        else:
-            extension = Path(path).name
-    extension = extension.split(".")[-1]
+        extension = _extract_extension(path)
+    if "item" not in df.columns and not (
+        isinstance(df.index, pd.RangeIndex)
+        and df.index.identical(pd.RangeIndex.from_range(range(df.shape[0])))
+    ):
+        df = df.reset_index().rename(columns={"index": "item"})
     if extension == "csv":
-        df.to_csv(path)
+        df.to_csv(path, index=False)
     elif extension == "json":
         df.to_json(path)
     elif extension == "ft" or extension == "feather":
-        try:
-            df.to_feather(path)
-        except ValueError:
-            df = df.reset_index().rename({"index": "item"})
-            df.to_feather(path)
+        df.to_feather(path)
     elif extension == "parquet" or extension == "pq":
         df.to_parquet(path)
     else:

@@ -4,6 +4,7 @@ import pytest
 
 from slisemap_interactive.load import (
     get_L_column,
+    load,
     save_dataframe,
     slisemap_to_dataframe,
     subsample,
@@ -16,7 +17,6 @@ def sm_to_df():
     Y = np.random.normal(0, 1, 100)
     B0 = np.random.normal(0, 1, (100, 6))
     sm = Slisemap(X, Y, lasso=0.1, B0=B0)
-    sm.metadata.set_rows(range(1, sm.n + 1))
     df = slisemap_to_dataframe(sm, losses=True, clusters=8)
     return sm, df
 
@@ -48,6 +48,7 @@ def test_load_slisemap(sm_to_df):
     assert df.shape[1] == 1 + sm.n + 7 + sm.m + sm.q + sm.o * 2 + sm.d - sm.intercept
     df2 = slisemap_to_dataframe(sm, max_n=80, index=False, losses=False, clusters=3)
     assert df2.shape[0] == 80
+    sm.metadata.set_rows(range(1, sm.n + 1))
     sm.metadata.set_variables(range(1, sm.m + 1 - sm.intercept))
     sm.metadata.set_targets("test")
     sm.metadata.set_coefficients(sm.metadata.get_variables())
@@ -72,6 +73,15 @@ def test_rec_l(sm_to_df):
 
 def test_save(sm_to_df, tmp_path):
     _, df = sm_to_df
+    df2 = df.copy()
+    df2.index = range(1, df.shape[0] + 1)
     for ending in ["csv", "json", "feather", "parquet"]:
         save_dataframe(df, tmp_path / f"test.{ending}")
         save_dataframe(df, str(tmp_path / f"test.{ending}"))
+        df3 = load(tmp_path / f"test.{ending}")
+        assert "item" not in df3.columns
+        assert np.allclose(df3.to_numpy(), df.to_numpy())
+        save_dataframe(df2, str(tmp_path / f"test.{ending}"))
+        df3 = load(tmp_path / f"test.{ending}")
+        del df3["item"]
+        assert np.allclose(df3.to_numpy(), df.to_numpy())

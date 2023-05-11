@@ -16,7 +16,11 @@ from xiplot.plugin import (
     PlotData,
 )
 
-from slisemap_interactive.load import slisemap_to_dataframe
+from slisemap_interactive.load import (
+    DEFAULT_MAX_L,
+    DEFAULT_MAX_N,
+    slisemap_to_dataframe,
+)
 from slisemap_interactive.plots import (
     BarGroupingDropdown,
     ClusterDropdown,
@@ -68,7 +72,7 @@ def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
     """
     # TODO Some columns should probably be hidden from the normal plots
 
-    def load(data, max_n: int = 5000, max_l: int = 200):
+    def load(data, max_n: int = DEFAULT_MAX_N, max_l: int = DEFAULT_MAX_L):
         return slisemap_to_dataframe(data, max_n=max_n, index=False, losses=max_l)
 
     return load, ".sm"
