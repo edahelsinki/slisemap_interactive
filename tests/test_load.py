@@ -76,12 +76,15 @@ def test_save(sm_to_df, tmp_path):
     df2 = df.copy()
     df2.index = range(1, df.shape[0] + 1)
     for ending in ["csv", "json", "feather", "parquet"]:
-        save_dataframe(df, tmp_path / f"test.{ending}")
-        save_dataframe(df, str(tmp_path / f"test.{ending}"))
-        df3 = load(tmp_path / f"test.{ending}")
-        assert "item" not in df3.columns
-        assert np.allclose(df3.to_numpy(), df.to_numpy())
-        save_dataframe(df2, str(tmp_path / f"test.{ending}"))
-        df3 = load(tmp_path / f"test.{ending}")
-        del df3["item"]
-        assert np.allclose(df3.to_numpy(), df.to_numpy())
+        try:
+            save_dataframe(df, tmp_path / f"test.{ending}")
+            save_dataframe(df, str(tmp_path / f"test.{ending}"))
+            df3 = load(tmp_path / f"test.{ending}")
+            assert "item" not in df3.columns
+            assert np.allclose(df3.to_numpy(), df.to_numpy())
+            save_dataframe(df2, str(tmp_path / f"test.{ending}"))
+            df3 = load(tmp_path / f"test.{ending}")
+            del df3["item"]
+            assert np.allclose(df3.to_numpy(), df.to_numpy())
+        except ModuleNotFoundError:
+            pass
