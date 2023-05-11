@@ -59,6 +59,7 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "border": "thin solid #D0D0DF",
         "boxShadow": "0px 2px 3px 0px hsla(0, 0%, 0%, 0.14)",
         "marginBottom": "0.5rem",
+        "gap": "0px 0.2rem",
     }
     style_header = {
         "paddingLeft": "0.3rem",
@@ -66,7 +67,6 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "marginTop": "0px",
         "marginBottom": "0px",
     }
-    style_controls = {"minWidth": "12em"}
     style_plot_area = {
         "display": "flex",
         "flexDirection": "row",
@@ -83,12 +83,12 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
     topbar = [
         html.H1(children="Interactive Slisemap", style=style_header),
         html.Div(style={"flex": "1"}),
-        VariableDropdown(df, data_key, style=style_controls),
-        ClusterDropdown(df, data_key, style=style_controls),
+        VariableDropdown(df, data_key, style={"minWidth": "14em"}),
+        ClusterDropdown(df, data_key, style={"minWidth": "14em"}),
         ContourCheckbox(data_key, style={"paddingRight": "0.3rem"}),
-        JitterSlider(data_key, style={"display": "inline-block", **style_controls}),
-        BarGroupingDropdown(data_key, style=style_controls),
-        DensityTypeDropdown(data_key, style=style_controls),
+        JitterSlider(data_key, style={"display": "inline-block", "minWidth": "14em"}),
+        BarGroupingDropdown(data_key, style={"minWidth": "10em"}),
+        DensityTypeDropdown(data_key, style={"minWidth": "10em"}),
     ]
     plots = [
         EmbeddingPlot(data_key, style=style_plot),
