@@ -86,5 +86,5 @@ def test_save(sm_to_df, tmp_path):
             df3 = load(tmp_path / f"test.{ending}")
             del df3["item"]
             assert np.allclose(df3.to_numpy(), df.to_numpy())
-        except ModuleNotFoundError:
+        except ImportError:
             pass
