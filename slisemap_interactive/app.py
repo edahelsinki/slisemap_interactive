@@ -80,7 +80,7 @@ def cli():
         kwargs["host"] = args.host
     if args.port:
         kwargs["port"] = args.port
-    ForegroundApp().set_data(path, args.n).run(**kwargs)
+    ForegroundApp().set_data(path, args.max_n).run(**kwargs)
 
 
 def plot(
