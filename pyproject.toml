@@ -23,6 +23,7 @@ dependencies = [
     "pandas >= 1.4",
     "plotly >= 5.9",
     "jupyter-dash >= 0.4",
+    "scipy >= 1.2",
 ]
 
 
