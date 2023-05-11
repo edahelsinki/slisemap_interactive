@@ -1,5 +1,5 @@
 """
-Functions for generating dynamic plots.
+    Functions and classes for generating dynamic plots.
 """
 
 from typing import (
