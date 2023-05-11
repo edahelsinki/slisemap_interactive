@@ -10,10 +10,9 @@ from warnings import warn
 import pandas as pd
 from dash import Dash
 from jupyter_dash import JupyterDash
-from slisemap import Slisemap
 
 from slisemap_interactive.layout import register_callbacks, page_with_all_plots
-from slisemap_interactive.load import slisemap_to_dataframe
+from slisemap_interactive.load import Slisemap, slisemap_to_dataframe
 from slisemap_interactive.plots import DataCache
 
 

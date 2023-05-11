@@ -9,8 +9,21 @@ import warnings
 
 import pandas as pd
 import numpy as np
-from slisemap import Slisemap
 from sklearn.cluster import KMeans
+
+try:
+    from slisemap import Slisemap
+except ImportError:
+    warnings.warn(
+        "Could not import Slisemap, only limited functionality is available (no loading only plotting)"
+    )
+
+    class Slisemap:
+        @classmethod
+        def load(cls, *args, **kwargs):
+            from slisemap import Slisemap
+
+            return Slisemap.load(*args, **kwargs)
 
 
 def subsample(Z: np.ndarray, n: int, clusters: Optional[int] = None) -> np.ndarray:

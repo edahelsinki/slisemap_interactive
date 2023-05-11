@@ -17,7 +17,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 dependencies = [
-    "slisemap >= 1.4",
+    "slisemap >= 1.4; platform_system!='Emscripten'",
     "numpy >= 1.19",
     "dash >= 2.6",
     "pandas >= 1.4",
