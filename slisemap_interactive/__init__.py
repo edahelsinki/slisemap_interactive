@@ -16,6 +16,7 @@
 """
 
 from slisemap_interactive.app import plot, shutdown, BackgroundApp, ForegroundApp
+from slisemap_interactive.load import slisemap_to_dataframe
 
 
 def __version__():

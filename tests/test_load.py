@@ -2,7 +2,12 @@ from slisemap import Slisemap
 import numpy as np
 import pytest
 
-from slisemap_interactive.load import get_L_column, slisemap_to_dataframe, subsample
+from slisemap_interactive.load import (
+    get_L_column,
+    save_dataframe,
+    slisemap_to_dataframe,
+    subsample,
+)
 
 
 @pytest.fixture(scope="session")
@@ -11,6 +16,7 @@ def sm_to_df():
     Y = np.random.normal(0, 1, 100)
     B0 = np.random.normal(0, 1, (100, 6))
     sm = Slisemap(X, Y, lasso=0.1, B0=B0)
+    sm.metadata.set_rows(range(1, sm.n + 1))
     df = slisemap_to_dataframe(sm, losses=True, clusters=8)
     return sm, df
 
@@ -42,7 +48,6 @@ def test_load_slisemap(sm_to_df):
     assert df.shape[1] == 1 + sm.n + 7 + sm.m + sm.q + sm.o * 2 + sm.d - sm.intercept
     df2 = slisemap_to_dataframe(sm, max_n=80, index=False, losses=False, clusters=3)
     assert df2.shape[0] == 80
-    sm.metadata.set_rows(range(1, sm.n + 1))
     sm.metadata.set_variables(range(1, sm.m + 1 - sm.intercept))
     sm.metadata.set_targets("test")
     sm.metadata.set_coefficients(sm.metadata.get_variables())
@@ -63,3 +68,10 @@ def test_rec_l(sm_to_df):
         l1 = get_L_column(df1, i)
         l2 = get_L_column(df2, i)
         assert np.all(np.equal(l1, l2) + (np.isnan(l2)))
+
+
+def test_save(sm_to_df, tmp_path):
+    _, df = sm_to_df
+    for ending in ["csv", "json", "feather", "parquet"]:
+        save_dataframe(df, tmp_path / f"test.{ending}")
+        save_dataframe(df, str(tmp_path / f"test.{ending}"))

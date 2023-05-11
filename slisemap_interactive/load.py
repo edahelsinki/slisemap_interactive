@@ -4,6 +4,7 @@
 
 import gc
 from os import PathLike
+from pathlib import Path
 from typing import Optional, Union
 import warnings
 
@@ -156,6 +157,40 @@ def slisemap_to_dataframe(
     del dfs
     gc.collect(1)
     return df
+
+
+def save_dataframe(df: pd.DataFrame, path: PathLike, extension: Optional[str] = None):
+    """Save dataframe to a file.
+    Supports csv, json, feather, and parquet.
+
+    Args:
+        df: Dataframe.
+        path: Path to the file.
+        extension: File type (taken from the path if None). Defaults to None.
+
+    Raises:
+        NotImplementedError: For unknown file extensions.
+    """
+    if extension is None:
+        if isinstance(path, str):
+            extension = path
+        else:
+            extension = Path(path).name
+    extension = extension.split(".")[-1]
+    if extension == "csv":
+        df.to_csv(path)
+    elif extension == "json":
+        df.to_json(path)
+    elif extension == "ft" or extension == "feather":
+        try:
+            df.to_feather(path)
+        except ValueError:
+            df = df.reset_index().rename({"index": "item"})
+            df.to_feather(path)
+    elif extension == "parquet" or extension == "pq":
+        df.to_parquet(path)
+    else:
+        raise NotImplementedError(f"Unknown file format for {extension}")
 
 
 def get_L_column(df: pd.DataFrame, index: Optional[int] = None) -> Optional[np.ndarray]:
