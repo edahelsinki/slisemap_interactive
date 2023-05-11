@@ -18,7 +18,6 @@ from xiplot.plugin import (
 
 from slisemap_interactive.load import slisemap_to_dataframe
 from slisemap_interactive.plots import (
-    PLOTLY_TEMPLATE,
     BarGroupingDropdown,
     ClusterDropdown,
     ContourCheckbox,
@@ -117,14 +116,7 @@ class SlisemapEmbeddingPlot(APlot):
             if hover is None:
                 hover = click
             return EmbeddingPlot.plot(
-                df,
-                x,
-                y,
-                variable,
-                contours,
-                jitter,
-                hover,
-                template=f"{template}+{PLOTLY_TEMPLATE}",
+                df, x, y, variable, contours, jitter, hover, template=template
             )
 
         @app.callback(
@@ -222,13 +214,7 @@ class SlisemapModelBarPlot(APlot):
             if hover is None:
                 hover = click
             return try_twice(
-                ModelBarPlot.plot,
-                df,
-                bs,
-                clusters,
-                grouping,
-                hover,
-                template=f"{template}+{PLOTLY_TEMPLATE}",
+                ModelBarPlot.plot, df, bs, clusters, grouping, hover, template=template
             )
 
         @app.callback(
@@ -300,9 +286,7 @@ class SlisemapModelMatrixPlot(APlot):
                 return placeholder_figure("Slisemap local models not found")
             if hover is None:
                 hover = click
-            return ModelMatrixPlot.plot(
-                df, bs, zs0, hover, template=f"{template}+{PLOTLY_TEMPLATE}"
-            )
+            return ModelMatrixPlot.plot(df, bs, zs0, hover, template=template)
 
         @app.callback(
             Output(ID_HOVERED, "data"),
@@ -361,12 +345,7 @@ class SlisemapDensityPlot(APlot):
             if hover is None:
                 hover = click
             return DistributionPlot.plot(
-                df,
-                variable,
-                "Density",
-                cluster,
-                hover,
-                template=f"{template}+{PLOTLY_TEMPLATE}",
+                df, variable, "Density", cluster, hover, template=template
             )
 
         PlotData.register_callback(
@@ -432,7 +411,7 @@ class SlisemapHistogramPlot(APlot):
                 "Histogram",
                 cluster,
                 hover,
-                template=f"{template}+{PLOTLY_TEMPLATE}",
+                template=template,
             )
 
         PlotData.register_callback(
@@ -497,13 +476,7 @@ class SlisemapLinearTermsPlot(APlot):
                 return placeholder_figure(f"Could not find prediction '{pred}'")
             if hover is None:
                 hover = click
-            return try_twice(
-                LinearTerms.plot,
-                df,
-                pred,
-                hover,
-                template=f"{template}+{PLOTLY_TEMPLATE}",
-            )
+            return try_twice(LinearTerms.plot, df, pred, hover, template=template)
 
         PlotData.register_callback(
             cls.name(), app, dict(pred=Input(cls.get_id(MATCH, "pred"), "value"))
