@@ -22,7 +22,7 @@ dependencies = [
     "dash >= 2.6",
     "pandas >= 1.4",
     "plotly >= 5.9",
-    "jupyter-dash >= 0.4",
+    "jupyter-dash >= 0.4; platform_system!='Emscripten'",
     "scipy >= 1.2",
 ]
 
