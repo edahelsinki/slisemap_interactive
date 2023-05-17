@@ -9,7 +9,13 @@ from warnings import warn
 
 import pandas as pd
 from dash import Dash
-from jupyter_dash import JupyterDash
+
+try:
+    from jupyter_dash import JupyterDash
+except ImportError:
+    # This might break the `BackgroundApp`.
+    # But jupyter_dash is not compatible with pyodide.
+    JupyterDash = Dash
 
 from slisemap_interactive.layout import register_callbacks, page_with_all_plots
 from slisemap_interactive.load import (
