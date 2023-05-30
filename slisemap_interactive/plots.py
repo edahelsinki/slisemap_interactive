@@ -526,13 +526,13 @@ class EmbeddingPlot(dcc.Graph):
         if ll:
             fig.update_traces(hovertemplate=None, hoverinfo="none")
         if contours:
-            kdex, kdey, kdez = kde2d(df[x], df[y], 0.25, 40)
+            kdex, kdey, kdez = kde2d(df[x], df[y], 0.2, 40)
             fig.add_contour(
                 x=kdex,
                 y=kdey,
                 z=kdez,
                 contours_coloring="none",
-                ncontours=6,
+                ncontours=7,
                 showlegend=False,
                 hoverinfo="skip",
                 hovertemplate=None,
