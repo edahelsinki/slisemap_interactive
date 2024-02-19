@@ -1,7 +1,6 @@
 """Hooks for connecting to xiplot (using entry points in 'pyproject.toml')."""
 
-from os import PathLike
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from dash import ALL, MATCH, Input, Output, State, dcc, html
@@ -41,7 +40,7 @@ from slisemap_interactive.plots import (
 
 
 class LabelledControls(FlexRow):
-    """Wrapper that adds a label to a control."""
+    """FlexRow wrapper that adds a labels to controls."""
 
     def __init__(
         self,
@@ -51,8 +50,8 @@ class LabelledControls(FlexRow):
         """Wrap controls in a `FlexRow` with labels on top.
 
         Args:
-            **controls: `{label: control}`.
             kwargs: Additional key word arguments forwarded to `FlexRow`
+            **controls: `{label: control}`.
         """
         children = [
             html.Div(
@@ -66,7 +65,7 @@ class LabelledControls(FlexRow):
         super().__init__(*children, **kwargs)
 
 
-def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
+def plugin_load() -> Tuple[Callable[[object], pd.DataFrame], str]:
     """Xiplot plugin for reading Slisemap files.
 
     Returns:
@@ -76,7 +75,7 @@ def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
     # TODO Some columns should probably be hidden from the normal plots
 
     def load(
-        data: PathLike, max_n: int = DEFAULT_MAX_N, max_l: int = DEFAULT_MAX_L
+        data: object, max_n: int = DEFAULT_MAX_N, max_l: int = DEFAULT_MAX_L
     ) -> pd.DataFrame:
         """Load the Slisemap."""
         return slisemap_to_dataframe(data, max_n=max_n, index=False, losses=max_l)

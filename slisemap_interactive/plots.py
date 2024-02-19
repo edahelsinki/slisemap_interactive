@@ -289,7 +289,7 @@ class VariableDropdown(dcc.Dropdown):
         """Create variable dropdown."""
         vars = get_variables(df)
         if value is None or value not in vars:
-            value = vars[0]
+            value = vars[0] if len(vars) > 0 else None
         if id is None:
             assert data is not None and controls is not None
             id = self.generate_id(data, controls)
