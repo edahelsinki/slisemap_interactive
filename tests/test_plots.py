@@ -1,6 +1,22 @@
-import pytest
 import pandas as pd
-from slisemap_interactive.plots import *
+import pytest
+
+from slisemap_interactive.plots import (
+    BarGroupingDropdown,
+    ClusterDropdown,
+    ContourCheckbox,
+    DataCache,
+    DensityTypeDropdown,
+    DistributionPlot,
+    EmbeddingPlot,
+    HoverData,
+    JitterSlider,
+    ModelBarPlot,
+    ModelMatrixPlot,
+    VariableDropdown,
+    first_not_none,
+    nested_get,
+)
 
 
 @pytest.fixture(scope="session")

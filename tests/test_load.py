@@ -1,6 +1,6 @@
-from slisemap import Slisemap
 import numpy as np
 import pytest
+from slisemap import Slisemap
 
 from slisemap_interactive.load import (
     get_L_column,

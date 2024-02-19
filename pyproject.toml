@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 xiplot = ["xiplot"]
-dev = ["pytest", "black[jupyter]", "pylint", "jupyter", "IPython"]
+dev = ["pytest", "pytest-cov", "black[jupyter]", "ruff", "jupyter", "IPython"]
 
 [project.urls]
 github = "https://github.com/edahelsinki/slisemap_interactive"
@@ -50,3 +50,54 @@ slisemap_interactive = "slisemap_interactive.app:cli"
 
 [tool.setuptools]
 packages = ["slisemap_interactive"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_also = [
+    "_deprecated",
+    "print",
+    "plt.show",
+    "if verbose",
+    "ImportError",
+    "_warn",
+]
+
+[tool.ruff.lint]
+select = [
+    "I",
+    "E",
+    "F",
+    "B",
+    "C4",
+    "W",
+    "D",
+    "UP",
+    "ANN",
+    "SIM",
+    "RUF",
+    "S",
+    "N",
+]
+ignore = [
+    "E501",
+    "B006",
+    "D105",
+    "D203",
+    "D204",
+    "D406",
+    "D213",
+    "D407",
+    "D413",
+    "ANN101",
+    "ANN102",
+    "ANN401",
+    "S101",
+    "N802",
+    "N803",
+    "N806",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ANN"]

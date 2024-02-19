@@ -1,4 +1,7 @@
+"""Run the slisemap_interactive app."""
+
 import sys
+
 from slisemap_interactive.app import cli
 
 # This script is only called when there is a local copy of the repository,

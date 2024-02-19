@@ -1,30 +1,51 @@
-"""
-    Load Slisemap objects and convert them into dataframes.
-"""
+"""Load Slisemap objects and convert them into dataframes."""
 
 import gc
+import warnings
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Union
-import warnings
+from typing import Any, List, Optional, Sequence, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.cluster import KMeans
 
 try:
     from slisemap import Slisemap
 except ImportError:
     warnings.warn(
-        "Could not import Slisemap, only limited functionality is available (no loading only plotting)"
+        "Could not import Slisemap, only limited functionality is available (no loading only plotting)",
+        stacklevel=1,
     )
 
     class Slisemap:
+        """Placeholder Slisemap class."""
+
         @classmethod
-        def load(cls, *args, **kwargs):
+        def load(cls, *args: Any, **kwargs: Any) -> "Slisemap":
+            """Trigger the loading from the real Slisemap."""
             from slisemap import Slisemap
 
             return Slisemap.load(*args, **kwargs)
+
+
+try:
+    from slisemap import Slipmap
+except ImportError:
+    warnings.warn(
+        "Could not import Slipmap, only limited functionality is available (no loading only plotting)",
+        stacklevel=1,
+    )
+
+    class Slipmap:
+        """Placeholder Slipmap class."""
+
+        @classmethod
+        def load(cls, *args: Any, **kwargs: Any) -> "Slipmap":
+            """Trigger the loading from the real Slipmap."""
+            from slisemap import Slipmap
+
+            return Slipmap.load(*args, **kwargs)
 
 
 # Defaults for subsampling the Slisemap object
@@ -34,6 +55,7 @@ DEFAULT_MAX_L = 250
 
 def subsample(Z: np.ndarray, n: int, clusters: Optional[int] = None) -> np.ndarray:
     """Get indices for subsampling.
+
     Optionally uses k-means clustering to ensure inclusion of rarer data items.
 
     Args:
@@ -81,18 +103,12 @@ def slisemap_to_dataframe(
     Returns:
         A dataframe containing data from the Slisemap object (columns: "X_*", "Y_*", "Z_*", "B_*", "Local loss", ("L_*", "Clusters *")).
     """
-    if isinstance(path, Slisemap):
-        sm = path
-    else:
-        sm = Slisemap.load(path, "cpu")
+    sm = path if isinstance(path, Slisemap) else Slisemap.load(path, "cpu")
 
     Z = sm.get_Z(rotate=True)
-    if max_n > 0 and sm.n > max_n:
-        ss = subsample(Z, max_n)
-    else:
-        ss = ...
+    ss = subsample(Z, max_n) if max_n > 0 and sm.n > max_n else ...
 
-    def preface_names(names, preface):
+    def preface_names(names: Sequence, preface: str) -> List[str]:
         return [n if n[:2] == preface else preface + n for n in map(str, names)]
 
     variables = sm.metadata.get_variables(intercept=False)
@@ -165,17 +181,14 @@ def slisemap_to_dataframe(
 
 
 def _extract_extension(path: Union[str, PathLike]) -> str:
-    if isinstance(path, str):
-        extension = path
-    else:
-        extension = Path(path).name
+    extension = path if isinstance(path, str) else Path(path).name
     return extension.split(".")[-1]
 
 
 def load(
     path: Union[Slisemap, pd.DataFrame, str, PathLike],
     extension: Optional[str] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """Load a dataframe or Slisemap object (into a dataframe).
 
@@ -204,8 +217,11 @@ def load(
     return slisemap_to_dataframe(path, **kwargs)
 
 
-def save_dataframe(df: pd.DataFrame, path: PathLike, extension: Optional[str] = None):
+def save_dataframe(
+    df: pd.DataFrame, path: PathLike, extension: Optional[str] = None
+) -> None:
     """Save dataframe to a file.
+
     Supports csv, json, feather, and parquet.
 
     Args:
@@ -237,6 +253,7 @@ def save_dataframe(df: pd.DataFrame, path: PathLike, extension: Optional[str] = 
 
 def get_L_column(df: pd.DataFrame, index: Optional[int] = None) -> Optional[np.ndarray]:
     """Get a column of the L matrix from a `slisemap_to_dataframe`.
+
     If `df` only contains a partial L matrix, then some values will be `np.nan`.
     If `df` does not contain L, then `None` is returned.
 

@@ -1,6 +1,4 @@
-"""
-    Functions and classes for generating dynamic plots.
-"""
+"""Functions and classes for generating dynamic plots."""
 
 from typing import (
     Any,
@@ -32,7 +30,10 @@ from slisemap_interactive.load import get_L_column
 PLOTLY_TEMPLATE = "slisemap_interactive"
 DEFAULT_TEMPLATE = "plotly_white+" + PLOTLY_TEMPLATE
 pio.templates[PLOTLY_TEMPLATE] = go.layout.Template(
-    layout=dict(margin=dict(l=10, r=10, t=30, b=20, autoexpand=True), uirevision=True)
+    layout={
+        "margin": {"l": 10, "r": 10, "t": 30, "b": 20, "autoexpand": True},
+        "uirevision": True,
+    }
 )
 
 
@@ -53,7 +54,7 @@ def try_twice(fn: Callable[[], Any], *args: Any, **kwargs: Any) -> Any:
         return fn(*args, **kwargs)
 
 
-def nested_get(obj: Any, *keys) -> Optional[Any]:
+def nested_get(obj: Any, *keys: Any) -> Optional[Any]:
     """Get a value from a nested object.
 
     Args:
@@ -73,7 +74,7 @@ def nested_get(obj: Any, *keys) -> Optional[Any]:
 def first_not_none(
     objects: Sequence[Optional[Any]],
     map: Optional[Callable[[Any], Optional[Any]]] = None,
-    *args,
+    *args: Any,
 ) -> Optional[Any]:
     """Find the first value that is not `None` (with optional mapping function).
 
@@ -115,10 +116,9 @@ def is_cluster_or_categorical(df: pd.DataFrame, column: str) -> bool:
         return True
     if "cluster" in column.lower():
         return True
-    if is_object_dtype(col):
-        if len(col[:50].unique()) <= 10:
-            if len(col.unique()) <= 10:
-                return True
+    if is_object_dtype(col) and len(col[:50].unique()) <= 10:  # noqa: SIM102
+        if len(col.unique()) <= 10:
+            return True
     return False
 
 
@@ -163,12 +163,13 @@ def get_variables(
     if loss_first:
         vars2 = [v for v in vars if v != "Local loss"]
         if len(vars) - 1 == len(vars2):
-            vars = ["Local loss"] + vars2
+            vars = ["Local loss", *vars2]
     return vars
 
 
 def placeholder_figure(text: str) -> Dict[str, Any]:
     """Display a placeholder text instead of a graph.
+
     This can be used in a "callback" function when a graph cannot be rendered.
 
     Args:
@@ -224,6 +225,7 @@ class DataCache(dict):
 
     def add_data(self, df: pd.DataFrame) -> int:
         """Add a dataset to the cache.
+
         This function checks for and reuses duplicate datasets.
 
         Args:
@@ -243,6 +245,8 @@ class DataCache(dict):
 
 
 class JitterSlider(html.Div):
+    """Slider for jitter."""
+
     def __init__(
         self,
         data: Optional[int] = None,
@@ -251,8 +255,9 @@ class JitterSlider(html.Div):
         steps: int = 5,
         id: Optional[Any] = None,
         value: float = 0.0,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create a jitter slider."""
         values = np.linspace(0.0, scale, steps)
         marks = {0: "No jitter"}
         for v in values[1:]:
@@ -265,10 +270,13 @@ class JitterSlider(html.Div):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class VariableDropdown(dcc.Dropdown):
+    """Dropdown for selecting variable."""
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -276,8 +284,9 @@ class VariableDropdown(dcc.Dropdown):
         controls: str = "default",
         id: Optional[Any] = None,
         value: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create variable dropdown."""
         vars = get_variables(df)
         if value is None or value not in vars:
             value = vars[0]
@@ -288,10 +297,13 @@ class VariableDropdown(dcc.Dropdown):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class ClusterDropdown(dcc.Dropdown):
+    """Dropdown for selecting cluster."""
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -299,8 +311,9 @@ class ClusterDropdown(dcc.Dropdown):
         controls: str = "default",
         id: Optional[Any] = None,
         value: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create cluster dropdown."""
         clusters = [c for c in df.columns if is_cluster_or_categorical(df, c)]
         if id is None:
             assert data is not None and controls is not None
@@ -311,18 +324,22 @@ class ClusterDropdown(dcc.Dropdown):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class DensityTypeDropdown(dcc.Dropdown):
+    """Dropdown for selecting density plot type."""
+
     def __init__(
         self,
         data: Optional[int] = None,
         controls: str = "default",
         id: Optional[Any] = None,
         value: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create density type dropdown."""
         if id is None:
             assert data is not None and controls is not None
             id = self.generate_id(data, controls)
@@ -333,18 +350,22 @@ class DensityTypeDropdown(dcc.Dropdown):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class BarGroupingDropdown(dcc.Dropdown):
+    """Dropdown for selecting grouping."""
+
     def __init__(
         self,
         data: Optional[int] = None,
         controls: str = "default",
         id: Optional[Any] = None,
         value: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create grouping dropdown."""
         if id is None:
             assert data is not None and controls is not None
             id = self.generate_id(data, controls)
@@ -355,10 +376,13 @@ class BarGroupingDropdown(dcc.Dropdown):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class PredictionDropdown(dcc.Dropdown):
+    """Dropdown for selecting prediction."""
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -366,8 +390,9 @@ class PredictionDropdown(dcc.Dropdown):
         controls: str = "default",
         id: Optional[Any] = None,
         value: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create prediction dropdown."""
         vars = [c for c in df.columns if c[0] == "Ŷ"]
         if len(vars) == 0:
             value = None
@@ -382,18 +407,22 @@ class PredictionDropdown(dcc.Dropdown):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class ContourCheckbox(dcc.Checklist):
+    """Checkbox for contours."""
+
     def __init__(
         self,
         data: Optional[int] = None,
         controls: str = "default",
         id: Optional[Any] = None,
         value: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
+        """Create contour checkbox."""
         if id is None:
             assert data is not None and controls is not None
             id = self.generate_id(data, controls)
@@ -401,19 +430,28 @@ class ContourCheckbox(dcc.Checklist):
 
     @classmethod
     def generate_id(cls, data: int, controls: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "controls": controls}
 
 
 class EmbeddingPlot(dcc.Graph):
+    """Plot with 2D embedding."""
+
     def __init__(
-        self, data: int, controls: str = "default", hover: str = "default", **kwargs
-    ):
+        self,
+        data: int,
+        controls: str = "default",
+        hover: str = "default",
+        **kwargs: Any,
+    ) -> None:
+        """Create embedding plot."""
         super().__init__(
             id=self.generate_id(data, controls, hover), clear_on_unhover=True, **kwargs
         )
 
     @classmethod
     def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {
             "type": cls.__name__,
             "data": data,
@@ -424,10 +462,13 @@ class EmbeddingPlot(dcc.Graph):
 
     @classmethod
     def get_hover_index(cls, hover_data: Any) -> Optional[int]:
+        """Get the index of the current hover over point."""
         return nested_get(hover_data, "points", 0, "customdata", 0)
 
     @classmethod
-    def register_callbacks(cls, app: Dash, data: DataCache):
+    def register_callbacks(cls, app: Dash, data: DataCache) -> None:
+        """Register Dash callbacks."""
+
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(JitterSlider.generate_id(MATCH, MATCH), "value"),
@@ -436,7 +477,7 @@ class EmbeddingPlot(dcc.Graph):
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def callback(jitter, variable, contour, cluster, hover):
+        def callback(jitter, variable, contour, cluster, hover) -> Figure:  # noqa: ANN001
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             dimensions = filter(lambda c: c[:2] == "Z_", df.columns)
@@ -458,7 +499,9 @@ class EmbeddingPlot(dcc.Graph):
         seed: int = 42,
         template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
-        def dfmod(var):
+        """Create the plot."""
+
+        def dfmod(var: str) -> pd.DataFrame:
             df2 = pd.DataFrame(
                 {x: df[x], y: df[y], var: df[var], "index": np.arange(df.shape[0])}
             )
@@ -544,9 +587,11 @@ class EmbeddingPlot(dcc.Graph):
             trace = px.scatter(df2.iloc[[hover]], x=x, y=y).update_traces(
                 hoverinfo="skip",
                 hovertemplate=None,
-                marker=dict(
-                    size=15, color="rgba(0,0,0,0)", line=dict(width=1, color="black")
-                ),
+                marker={
+                    "size": 15,
+                    "color": "rgba(0,0,0,0)",
+                    "line": {"width": 1, "color": "black"},
+                },
             )
             fig.add_traces(trace.data)
         fig.update_yaxes(scaleanchor="x", scaleratio=1)
@@ -555,15 +600,23 @@ class EmbeddingPlot(dcc.Graph):
 
 
 class ModelMatrixPlot(dcc.Graph):
+    """Heatmap plot for the coefficient matrix."""
+
     def __init__(
-        self, data: int, controls: str = "default", hover: str = "default", **kwargs
-    ):
+        self,
+        data: int,
+        controls: str = "default",
+        hover: str = "default",
+        **kwargs: Any,
+    ) -> None:
+        """Create model matrix plot."""
         super().__init__(
             id=self.generate_id(data, controls, hover), clear_on_unhover=True, **kwargs
         )
 
     @classmethod
     def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {
             "type": cls.__name__,
             "data": data,
@@ -574,16 +627,19 @@ class ModelMatrixPlot(dcc.Graph):
 
     @classmethod
     def get_hover_index(cls, hover_data: Any) -> Optional[int]:
+        """Get the index of the current hover over point."""
         hover = nested_get(hover_data, "points", 0, "x")
         return int(hover) if hover is not None else None
 
     @classmethod
-    def register_callbacks(cls, app: Dash, data: DataCache):
+    def register_callbacks(cls, app: Dash, data: DataCache) -> None:
+        """Register Dash callbacks."""
+
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def callback(hover):
+        def callback(hover: Optional[int]) -> Figure:
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
@@ -598,6 +654,7 @@ class ModelMatrixPlot(dcc.Graph):
         hover: Optional[int] = None,
         template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
+        """Create the plot."""
         if sort_by is None:
             order_to_sorted = np.arange(df.shape[0])
         else:
@@ -609,7 +666,7 @@ class ModelMatrixPlot(dcc.Graph):
             B_mat,
             color_continuous_midpoint=0,
             aspect="auto",
-            labels=dict(color="Coefficient", x="Data items sorted left to right"),
+            labels={"color": "Coefficient", "x": "Data items sorted left to right"},
             title="Local models",
             color_continuous_scale="RdBu",
             y=coefficients,
@@ -624,13 +681,23 @@ class ModelMatrixPlot(dcc.Graph):
 
 
 class ModelBarPlot(dcc.Graph):
+    """Barplot for the local model coefficients."""
+
+    GROUPING_OPTIONS = Literal["Variables", "Clusters"]
+
     def __init__(
-        self, data: int, controls: str = "default", hover: str = "default", **kwargs
-    ):
+        self,
+        data: int,
+        controls: str = "default",
+        hover: str = "default",
+        **kwargs: Any,
+    ) -> None:
+        """Create the model bar plot."""
         super().__init__(id=self.generate_id(data, controls, hover), **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {
             "type": cls.__name__,
             "data": data,
@@ -639,14 +706,18 @@ class ModelBarPlot(dcc.Graph):
         }
 
     @classmethod
-    def register_callbacks(cls, app: Dash, data: DataCache):
+    def register_callbacks(cls, app: Dash, data: DataCache) -> None:
+        """Register Dash callbacks."""
+
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
             Input(BarGroupingDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def callback(cluster, grouping, hover):
+        def callback(
+            cluster: Optional[str], grouping: cls.GROUPING_OPTIONS, hover: Optional[int]
+        ) -> Figure:
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             coefficients = [c for c in df.columns if c[:2] == "B_"]
@@ -658,10 +729,8 @@ class ModelBarPlot(dcc.Graph):
             Output(BarGroupingDropdown.generate_id(MATCH, MATCH), "disabled"),
             Input(ClusterDropdown.generate_id(MATCH, MATCH), "value"),
         )
-        def callback_disabled(cluster):
+        def callback_disabled(cluster: Optional[str]) -> bool:
             return cluster is None
-
-    GROUPING_OPTIONS = Literal["Variables", "Clusters"]
 
     @staticmethod
     def plot(
@@ -672,6 +741,7 @@ class ModelBarPlot(dcc.Graph):
         hover: Optional[int] = None,
         template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
+        """Create the plot."""
         coefficient_range = df[coefficients].abs().quantile(0.95).max() * 1.1
         if hover is not None:
             fig = px.bar(
@@ -689,7 +759,7 @@ class ModelBarPlot(dcc.Graph):
                 .aggregate(["mean", "std"])
                 .stack(level=0)
                 .reset_index()
-                .rename(columns=dict(level_1="Coefficients"))
+                .rename(columns={"level_1": "Coefficients"})
             )
             df2[cluster] = df2[cluster].astype("category")
             facet = grouping == "Clusters"
@@ -725,13 +795,21 @@ class ModelBarPlot(dcc.Graph):
 
 
 class DistributionPlot(dcc.Graph):
+    """Distribution plot for the data and models."""
+
     def __init__(
-        self, data: int, controls: str = "default", hover: str = "default", **kwargs
-    ):
+        self,
+        data: int,
+        controls: str = "default",
+        hover: str = "default",
+        **kwargs: Any,
+    ) -> None:
+        """Create the distribution plot."""
         super().__init__(id=self.generate_id(data, controls, hover), **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {
             "type": cls.__name__,
             "data": data,
@@ -740,7 +818,9 @@ class DistributionPlot(dcc.Graph):
         }
 
     @classmethod
-    def register_callbacks(cls, app: Dash, data: DataCache):
+    def register_callbacks(cls, app: Dash, data: DataCache) -> None:
+        """Register Dash callbacks."""
+
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(VariableDropdown.generate_id(MATCH, MATCH), "value"),
@@ -748,13 +828,14 @@ class DistributionPlot(dcc.Graph):
             Input(DensityTypeDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def callback(variable, cluster, histogram, hover):
+        def callback(variable, cluster, histogram, hover) -> Figure:  # noqa: ANN001
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             return try_twice(cls.plot, df, variable, histogram, cluster, hover)
 
     PLOT_TYPE_OPTIONS = Literal["Histogram", "Density"]
 
+    @staticmethod
     def plot(
         df: pd.DataFrame,
         variable: str,
@@ -763,6 +844,7 @@ class DistributionPlot(dcc.Graph):
         hover: Optional[int] = None,
         template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
+        """Create the plot."""
         if is_cluster_or_categorical(df, cluster):
             cats = get_categories(df[cluster])
             if plot_type == "Histogram":
@@ -789,7 +871,7 @@ class DistributionPlot(dcc.Graph):
                 fig = ff.create_distplot(data, clusters, show_hist=False, colors=colors)
                 fig.update_layout(
                     title=f"Density plot for {variable}",
-                    legend=dict(title=cluster, traceorder="normal"),
+                    legend={"title": cluster, "traceorder": "normal"},
                 )
             if len(cats) < 4:
                 fig.layout.yaxis.domain = [0.21, 1]
@@ -818,13 +900,24 @@ class DistributionPlot(dcc.Graph):
 
 
 class LinearTerms(dcc.Graph):
+    """Plot the local model coefficients times the variable values in a barplot.
+
+    This plot assumes that the variables are scaled and the coefficients are linear.
+    """
+
     def __init__(
-        self, data: int, controls: str = "default", hover: str = "default", **kwargs
-    ):
+        self,
+        data: int,
+        controls: str = "default",
+        hover: str = "default",
+        **kwargs: Any,
+    ) -> None:
+        """Create the bar plot."""
         super().__init__(id=self.generate_id(data, controls, hover), **kwargs)
 
     @classmethod
     def generate_id(cls, data: int, controls: str, hover: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {
             "type": cls.__name__,
             "data": data,
@@ -833,17 +926,20 @@ class LinearTerms(dcc.Graph):
         }
 
     @classmethod
-    def register_callbacks(cls, app: Dash, data: DataCache):
+    def register_callbacks(cls, app: Dash, data: DataCache) -> None:
+        """Register Dash callbacks."""
+
         @app.callback(
             Output(cls.generate_id(MATCH, MATCH, MATCH), "figure"),
             Input(PredictionDropdown.generate_id(MATCH, MATCH), "value"),
             Input(HoverData.generate_id(MATCH, MATCH), "data"),
         )
-        def callback(pred, hover):
+        def callback(pred: str, hover: Optional[int]) -> Figure:
             data_key = ctx.triggered_id["data"]
             df = data[data_key]
             return try_twice(cls.plot, df, pred, hover)
 
+    @staticmethod
     def plot(
         df: pd.DataFrame,
         pred: str,
@@ -851,6 +947,7 @@ class LinearTerms(dcc.Graph):
         decimals: int = 3,
         template: str = DEFAULT_TEMPLATE,
     ) -> Figure:
+        """Create the plot."""
         if hover is None:
             return no_update
         Xs = [c for c in df.columns if c[0] == "X"]
@@ -888,19 +985,19 @@ class LinearTerms(dcc.Graph):
         tdec = int(np.max(np.log(np.abs(terms) + 1e-8)) // np.log(10))
         tdec = decimals - min(decimals - 1, max(0, tdec))
         text = [
-            f"X × B = {x:.{xdec}g} × {b:.{bdec}g} = {i:.{tdec}g}"
+            f"X × B = {x:.{xdec}g} × {b:.{bdec}g} = {i:.{tdec}g}"  # noqa: RUF001
             for x, b, i in zip(xrow, brow, terms)
         ]
         xmax = np.max(np.abs(terms)) * 1.01
         df2 = pd.DataFrame(
-            dict(
-                Variable=vars,
-                Value=xrow,
-                Coefficient=brow,
-                text=text,
-                sign=np.sign(terms),
-                Term=terms,
-            )
+            {
+                "Variable": vars,
+                "Value": xrow,
+                "Coefficient": brow,
+                "text": text,
+                "sign": np.sign(terms),
+                "Term": terms,
+            }
         )
         fig = px.bar(
             df2.iloc[::-1, :],
@@ -928,17 +1025,22 @@ class LinearTerms(dcc.Graph):
 
 
 class HoverData(dcc.Store):
-    def __init__(self, data: int, hover: str = "default", **kwargs):
+    """Data store for the hover index."""
+
+    def __init__(self, data: int, hover: str = "default", **kwargs: Any) -> None:
+        """Create the data store."""
         super().__init__(
             id=self.generate_id(data, hover), data=None, storage_type="memory", **kwargs
         )
 
     @classmethod
     def generate_id(cls, data: int, hover: str) -> Dict[str, Any]:
+        """Generate dash id."""
         return {"type": cls.__name__, "data": data, "hover": hover}
 
     @classmethod
-    def register_callbacks(cls, app: Dash, data: Optional[DataCache] = None):
+    def register_callbacks(cls, app: Dash, data: Optional[DataCache] = None) -> None:
+        """Register Dash callbacks."""
         input = EmbeddingPlot.generate_id(MATCH, ALL, MATCH)
         input["type"] = ALL
 
@@ -947,7 +1049,7 @@ class HoverData(dcc.Store):
             Input(input, "hoverData"),
             prevent_initial_call=True,
         )
-        def hover_callback(inputs):
+        def hover_callback(inputs: Any) -> Optional[int]:
             tt = ctx.triggered_id["type"]
             if tt == "EmbeddingPlot":
                 return first_not_none(inputs, EmbeddingPlot.get_hover_index)
