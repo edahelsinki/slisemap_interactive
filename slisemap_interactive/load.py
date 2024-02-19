@@ -51,6 +51,8 @@ except ImportError:
 # Defaults for subsampling the Slisemap object
 DEFAULT_MAX_N = 5000
 DEFAULT_MAX_L = 250
+INDEX_COLUMN = "item"
+PROTOTYPE_COLUMN = "Slipmap Prototype"
 
 
 def subsample(Z: np.ndarray, n: int, clusters: Optional[int] = None) -> np.ndarray:
@@ -94,7 +96,7 @@ def slisemap_to_dataframe(
     """Convert a `Slisemap` object to a `pandas.DataFrame`.
 
     Args:
-        path: Slisemap object or path to a saved slisemap object.
+        path: Slisemap object or path to a saved Slisemap object.
         losses: Return the loss matrix. Can also be a number specifying the (approximate) maximum number of `L_*` columns. Default to True.
         clusters: Return cluster indices (if greater than one). Defaults to 9.
         max_n: maximum number of data items in the dataframe (subsampling is recommended if `n > 5000` and `losses=True`). Defaults to -1.
@@ -174,8 +176,109 @@ def slisemap_to_dataframe(
         if index:
             df.index = rows
         else:
-            df.insert(0, "item", rows)
+            df.insert(0, INDEX_COLUMN, rows)
     del dfs
+    gc.collect(1)
+    return df
+
+
+def slipmap_to_dataframe(
+    path: Union[str, PathLike, Slipmap],
+    losses: bool = True,
+    clusters: int = 9,
+    max_n: int = -1,
+    index: bool = True,
+) -> pd.DataFrame:
+    """Convert a `Slipmap` object to a `pandas.DataFrame`.
+
+    Args:
+        path: Slipmap object or path to a saved Slipmap object.
+        losses: Return the loss matrix. Can also be a number specifying the (approximate) maximum number of `L_*` columns. Default to True.
+        clusters: Return cluster indices (if greater than one). Defaults to 9.
+        max_n: maximum number of data items in the dataframe (subsampling is recommended if `n > 5000` and `losses=True`). Defaults to -1.
+        index: Return row names as the index (True) or as an "item" column (False). Defaults to True.
+
+    Returns:
+        A dataframe containing data from the Slipmap object (columns: "X_*", "Y_*", "Z_*", "B_*", "Local loss", ("L_*", "Clusters *")).
+    """
+    sp = path if isinstance(path, Slipmap) else Slipmap.load(path, "cpu")
+
+    Z = sp.get_Z()
+    ss = subsample(Z, max_n) if max_n > 0 and sp.n > max_n else ...
+
+    def preface_names(names: Sequence, preface: str) -> List[str]:
+        return [n if n[:2] == preface else preface + n for n in map(str, names)]
+
+    variables = sp.metadata.get_variables(intercept=False)
+    variables = preface_names(variables, "X_")
+    targets = sp.metadata.get_targets()
+    if len(targets) > 1 or targets[0] != "Y":
+        targets = preface_names(targets, "Y_")
+    predictions = ["Ŷ" + t[1:] for t in targets]
+    coefficients = sp.metadata.get_coefficients()
+    coefficients = preface_names(coefficients, "B_")
+    dimensions = sp.metadata.get_dimensions()
+    dimensions = preface_names(dimensions, "Z_")
+    rows = sp.metadata.get_rows(fallback=False)
+    rows_proto = range(sp.n, sp.n + sp.p)
+    has_index = True
+    if ss is not ...:
+        rows = ss if rows is None else np.asarray(rows)[ss]
+    elif rows is None:
+        has_index = False
+        rows = range(sp.n)
+
+    pred = sp.predict(sp._X[ss, :])
+    local_loss = sp.local_loss(sp._Y, sp._as_new_Y(pred)).detach().cpu().numpy()
+    dfs = [
+        pd.DataFrame.from_records(sp.metadata.unscale_X()[ss, :], columns=variables),
+        pd.DataFrame.from_records(sp.metadata.unscale_Y()[ss, :], columns=targets),
+        pd.DataFrame.from_records(Z[ss, :], columns=dimensions),
+        pd.DataFrame.from_records(sp.get_B()[ss, :], columns=coefficients),
+        pd.DataFrame.from_records(sp.metadata.unscale_Y(pred), columns=predictions),
+        pd.DataFrame({"Local loss": local_loss}),
+    ]
+    del variables, targets, predictions, Z, pred, local_loss
+    gc.collect(1)
+
+    dfs2 = [
+        pd.DataFrame.from_records(sp.get_Zp(), columns=dimensions),
+        pd.DataFrame.from_records(sp.get_Bp(), columns=coefficients),
+    ]
+    if losses:
+        L = sp.get_L(X=sp._X[ss, :], Y=sp._Y[ss, :])[ss, :]
+        Ln = [f"LT_{i}" for i in rows_proto]
+        dfs.append(pd.DataFrame.from_records(L.T, columns=Ln))
+        del L
+
+    if clusters > 1:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            clusters = {
+                f"Clusters {i}": pd.Series(
+                    sp.get_model_clusters(i)[0][ss], dtype="category"
+                )
+                for i in range(2, clusters + 1)
+            }
+            dfs.append(pd.DataFrame(clusters))
+    del sp, dimensions, coefficients
+    gc.collect(1)
+
+    # Then we create a dataframe to return
+    df1 = pd.concat(dfs, axis=1, copy=False)
+    df2 = pd.concat(dfs2, axis=1, copy=False)
+    df1[PROTOTYPE_COLUMN] = False
+    df2[PROTOTYPE_COLUMN] = True
+    df2.index = rows_proto
+    del dfs, dfs2
+    if has_index:
+        if index:
+            df1.index = rows
+        else:
+            df1.insert(0, INDEX_COLUMN, rows)
+            df2.insert(0, INDEX_COLUMN, rows_proto)
+    df = pd.concat((df1, df2), axis=0, copy=False)
+    del df1, df2
     gc.collect(1)
     return df
 
@@ -204,6 +307,8 @@ def load(
         return path
     if isinstance(path, Slisemap):
         return slisemap_to_dataframe(path, **kwargs)
+    if isinstance(path, Slipmap):
+        return slipmap_to_dataframe(path, **kwargs)
     if extension is None:
         extension = _extract_extension(path)
     if extension == "csv":
@@ -214,6 +319,8 @@ def load(
         return pd.read_json(path)
     if extension == "feather" or extension == "ft":
         return pd.read_feather(path)
+    if extension == "sp":
+        return slipmap_to_dataframe(path, **kwargs)
     return slisemap_to_dataframe(path, **kwargs)
 
 
@@ -234,11 +341,11 @@ def save_dataframe(
     """
     if extension is None:
         extension = _extract_extension(path)
-    if "item" not in df.columns and not (
+    if INDEX_COLUMN not in df.columns and not (
         isinstance(df.index, pd.RangeIndex)
         and df.index.identical(pd.RangeIndex.from_range(range(df.shape[0])))
     ):
-        df = df.reset_index().rename(columns={"index": "item"})
+        df = df.reset_index().rename(columns={"index": INDEX_COLUMN})
     if extension == "csv":
         df.to_csv(path, index=False)
     elif extension == "json":
@@ -264,7 +371,7 @@ def get_L_column(df: pd.DataFrame, index: Optional[int] = None) -> Optional[np.n
     Returns:
         Loss column.
     """
-    rows = df.get("item", df.index)
+    rows = df.get(INDEX_COLUMN, df.index)
     col = df.get(f"L_{rows[index]}", None)
     if col is not None:
         return col

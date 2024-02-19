@@ -18,6 +18,7 @@ from xiplot.plugin import (
 from slisemap_interactive.load import (
     DEFAULT_MAX_L,
     DEFAULT_MAX_N,
+    slipmap_to_dataframe,
     slisemap_to_dataframe,
 )
 from slisemap_interactive.plots import (
@@ -65,7 +66,7 @@ class LabelledControls(FlexRow):
         super().__init__(*children, **kwargs)
 
 
-def plugin_load() -> Tuple[Callable[[object], pd.DataFrame], str]:
+def load_slisemap() -> Tuple[Callable[[object], pd.DataFrame], str]:
     """Xiplot plugin for reading Slisemap files.
 
     Returns:
@@ -81,6 +82,22 @@ def plugin_load() -> Tuple[Callable[[object], pd.DataFrame], str]:
         return slisemap_to_dataframe(data, max_n=max_n, index=False, losses=max_l)
 
     return load, ".sm"
+
+
+def load_slipmap() -> Tuple[Callable[[object], pd.DataFrame], str]:
+    """Xiplot plugin for reading Slipmap files.
+
+    Returns:
+        parser: Function for parsing a Slipmap file to a dataframe.
+        extension: File extension.
+    """
+    # TODO Some columns should probably be hidden from the normal plots
+
+    def load(data: object, max_n: int = DEFAULT_MAX_N) -> pd.DataFrame:
+        """Load the Slipmap."""
+        return slipmap_to_dataframe(data, max_n=max_n, index=False)
+
+    return load, ".sp"
 
 
 class SlisemapEmbeddingPlot(APlot):

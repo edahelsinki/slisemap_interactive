@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Union, get_args, get_origin
 
 import numpy as np
 import pandas as pd
-from slisemap import Slisemap
+from slisemap import Slipmap, Slisemap
 from xiplot.plugin import APlot, AReadPlugin
 
 from slisemap_interactive.plots import JitterSlider
@@ -16,7 +16,8 @@ from slisemap_interactive.xiplot import (
     SlisemapLinearTermsPlot,
     SlisemapModelBarPlot,
     SlisemapModelMatrixPlot,
-    plugin_load,
+    load_slipmap,
+    load_slisemap,
 )
 
 
@@ -74,8 +75,9 @@ def type_to_annotation(typ: type, reference: Callable):
 
 
 def test_load_signature():
-    assert_annotation_match(plugin_load, type_to_annotation(AReadPlugin, plugin_load))
-    assert_annotation_match(plugin_load, signature_to_annotation(plugin_load))
+    for load in [load_slisemap, load_slipmap]:
+        assert_annotation_match(load, type_to_annotation(AReadPlugin, load))
+        assert_annotation_match(load, signature_to_annotation(load))
 
 
 def test_load():
@@ -86,8 +88,14 @@ def test_load():
     with BytesIO() as io:
         sm.save(io)
         io.seek(0)
-        sm2 = plugin_load()[0](io)
+        sm2 = load_slisemap()[0](io)
     assert sm2.shape == (10, 30)
+    sp = Slipmap.convert(sm)
+    with BytesIO() as io:
+        sp.save(io)
+        io.seek(0)
+        sp2 = load_slipmap()[0](io)
+    assert sp2.shape[0] == 10
 
 
 def test_plot_signature():

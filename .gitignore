@@ -169,4 +169,4 @@ poetry.toml
 *.sm
 *.tmp
 *.txt
-!*requitements*.txt
+*.sp

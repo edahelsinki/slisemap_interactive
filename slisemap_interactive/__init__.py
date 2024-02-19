@@ -20,4 +20,8 @@ from slisemap_interactive.app import (  # noqa: F401
     plot,
     shutdown,
 )
-from slisemap_interactive.load import load, slisemap_to_dataframe  # noqa: F401
+from slisemap_interactive.load import (  # noqa: F401
+    load,
+    slipmap_to_dataframe,
+    slisemap_to_dataframe,
+)

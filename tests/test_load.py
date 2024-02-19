@@ -1,11 +1,12 @@
 import numpy as np
 import pytest
-from slisemap import Slisemap
+from slisemap import Slipmap, Slisemap
 
 from slisemap_interactive.load import (
     get_L_column,
     load,
     save_dataframe,
+    slipmap_to_dataframe,
     slisemap_to_dataframe,
     subsample,
 )
@@ -60,6 +61,15 @@ def test_load_slisemap(sm_to_df):
     assert all(f"Z_{i}" in df3 for i in sm.metadata.get_dimensions())
     assert np.allclose(df3.index, sm.metadata.get_rows())
     slisemap_to_dataframe(sm, losses=20, max_n=20, clusters=0, index=False)
+
+
+def test_load_slipmap(sm_to_df):
+    sm, dfm = sm_to_df
+    sp = Slipmap.convert(sm)
+    dfp = slipmap_to_dataframe(sp)
+    for col in dfm.columns:
+        if col[0] not in ("L", "B", "Ŷ", "C"):
+            assert np.allclose(dfm[col], dfp[col][: dfm.shape[0]], 1e-4)
 
 
 def test_rec_l(sm_to_df):

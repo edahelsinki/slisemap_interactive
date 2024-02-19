@@ -25,7 +25,7 @@ from pandas.api.types import is_bool_dtype, is_categorical_dtype, is_object_dtyp
 from plotly.graph_objects import Figure
 from scipy.stats import gaussian_kde
 
-from slisemap_interactive.load import get_L_column
+from slisemap_interactive.load import PROTOTYPE_COLUMN, get_L_column
 
 PLOTLY_TEMPLATE = "slisemap_interactive"
 DEFAULT_TEMPLATE = "plotly_white+" + PLOTLY_TEMPLATE
@@ -502,13 +502,13 @@ class EmbeddingPlot(dcc.Graph):
         """Create the plot."""
 
         def dfmod(var: str) -> pd.DataFrame:
-            df2 = pd.DataFrame(
-                {x: df[x], y: df[y], var: df[var], "index": np.arange(df.shape[0])}
-            )
+            df2 = df[[x, y, var]].copy()
+            df2["index"] = pd.RangeIndex(df2.shape[0])
             if jitter > 0:
+                mult = 1.0 - df.get(PROTOTYPE_COLUMN, 0.0)
                 prng = np.random.default_rng(seed)
-                df2[x] += prng.normal(0, jitter, df.shape[0])
-                df2[y] += prng.normal(0, jitter, df.shape[0])
+                df2[x] += prng.normal(0, mult * jitter, df.shape[0])
+                df2[y] += prng.normal(0, mult * jitter, df.shape[0])
             return df2
 
         fig = None
@@ -522,10 +522,12 @@ class EmbeddingPlot(dcc.Graph):
                 y=y,
                 color=variable,
                 color_discrete_sequence=px.colors.qualitative.Plotly,
+                opacity=(1.0 - df.get(PROTOTYPE_COLUMN, 0.0)) * 0.8,
                 symbol=variable,
                 category_orders={variable: cats},
                 title="Embedding",
                 custom_data=["index"],
+                render_mode="webgl",
             )
             fig.update_traces(hovertemplate=None, hoverinfo="none")
             ll = False
@@ -533,11 +535,11 @@ class EmbeddingPlot(dcc.Graph):
             ll = variable == "Local loss"
         if fig is None and ll and hover is not None:
             losses = get_L_column(df, hover)
-            if losses is not None:
+            if losses is not None and np.isfinite(losses[hover]):
                 loss_cols = [c for c in df.columns if c[:2] == "L_" or c[:3] == "LT_"]
                 lrange = (
-                    df[loss_cols].abs().min().quantile(0.05) * 0.9,
-                    df[loss_cols].abs().max().quantile(0.95) * 1.1,
+                    df[loss_cols].min().quantile(0.05) * 0.9,
+                    df[loss_cols].max().quantile(0.95) * 1.1,
                 )
                 df2 = dfmod(variable)
                 df2[variable] = losses
@@ -552,6 +554,7 @@ class EmbeddingPlot(dcc.Graph):
                     labels={variable: "Local loss&nbsp;"},
                     custom_data=["index"],
                     range_color=lrange,
+                    render_mode="webgl",
                 )
         if fig is None:
             df2 = dfmod(variable)
@@ -562,9 +565,10 @@ class EmbeddingPlot(dcc.Graph):
                 color=variable,
                 color_continuous_scale="Plasma_r",
                 title="Embedding",
-                opacity=0.8,
+                opacity=(1.0 - df.get(PROTOTYPE_COLUMN, 0.0)) * 0.8,
                 labels={variable: "Local loss&nbsp;"} if ll else None,
                 custom_data=["index"],
+                render_mode="webgl",
             )
         if ll:
             fig.update_traces(hovertemplate=None, hoverinfo="none")
@@ -583,6 +587,24 @@ class EmbeddingPlot(dcc.Graph):
                 line_color="grey",
                 line_width=1,
             )
+        if hover is None and df.get(PROTOTYPE_COLUMN) is not None:
+            trace = px.scatter(
+                df[df[PROTOTYPE_COLUMN]],
+                x=x,
+                y=y,
+                render_mode="webgl",
+                opacity=0.8,
+            ).update_traces(
+                hovertemplate=None,
+                hoverinfo="skip",
+                marker={
+                    "size": 8,
+                    "symbol": "hexagon2",
+                    "color": "rgba(0,0,0,0)",
+                    "line": {"width": 1, "color": "black"},
+                },
+            )
+            fig.add_traces(trace.data)
         if hover is not None:
             trace = px.scatter(df2.iloc[[hover]], x=x, y=y).update_traces(
                 hoverinfo="skip",
@@ -887,13 +909,15 @@ class DistributionPlot(dcc.Graph):
             if plot_type == "Histogram":
                 fig = px.histogram(df, variable, title=f"Histogram of {variable}")
             else:
-                fig = ff.create_distplot([df[variable]], [variable], show_hist=False)
+                fig = ff.create_distplot(
+                    [df[variable].dropna()], [variable], show_hist=False
+                )
                 fig.layout.yaxis.domain = [0.21, 1]
                 fig.layout.yaxis2.domain = [0, 0.19]
                 fig.update_layout(
                     showlegend=False, title=f"Density plot for {variable}"
                 )
-        if hover is not None:
+        if hover is not None and np.isfinite(df[variable].iloc[hover]):
             fig.add_vline(x=df[variable].iloc[hover])
         fig.update_layout(template=template, xaxis_title=None, yaxis_title=None)
         return fig

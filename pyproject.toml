@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slisemap_interactive"
-version = "0.5.0"
+version = "0.6.0"
 description = "Interactive plots for Slisemap using Dash"
 readme = "README.md"
 license = { text = "MIT" }
@@ -35,7 +35,8 @@ dev = ["pytest", "pytest-cov", "black[jupyter]", "ruff", "jupyter", "IPython"]
 github = "https://github.com/edahelsinki/slisemap_interactive"
 
 [project.entry-points."xiplot.plugin.read"]
-xiplot_plugin_load = "slisemap_interactive.xiplot:plugin_load"
+xiplot_plugin_load_slisemap = "slisemap_interactive.xiplot:load_slisemap"
+xiplot_plugin_load_slipmap = "slisemap_interactive.xiplot:load_slipmap"
 
 [project.entry-points."xiplot.plugin.plot"]
 xiplot_plugin_embeddingplot = "slisemap_interactive.xiplot:SlisemapEmbeddingPlot"
