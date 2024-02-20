@@ -477,7 +477,7 @@ class SlisemapHistogramPlot(APlot):
 
     # @classmethod
     # def help(cls) -> str:
-    """Help string."""
+    #     """Help string."""
     #     return "Histogram for Slisemap objects"
 
     @classmethod

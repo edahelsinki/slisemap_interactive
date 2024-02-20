@@ -56,7 +56,7 @@ packages = ["slisemap_interactive"]
 branch = true
 
 [tool.coverage.report]
-exclude_also = ["print", "ImportError", "callback"]
+exclude_also = ["print", "ImportError"]
 
 [tool.ruff.lint]
 select = [

@@ -278,7 +278,7 @@ class BackgroundApp(JupyterDash):
             Exception: The server must be started (through `BackgroundApp().run()`) before the plots are displayed.
         """
         if self._display_call is None:
-            raise Exception(
+            raise RuntimeError(
                 "You need to run `BackgroundApp().run()` before displaying results"
             )
         if mode is None:

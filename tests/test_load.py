@@ -71,7 +71,7 @@ def test_load_slipmap(sm_to_df):
         if col[0] not in ("L", "B", "Ŷ", "C"):
             assert np.allclose(
                 dfm[col], dfp[col][: dfm.shape[0]], 2e-4
-            ), f"{col} not equal"
+            ), f"{col} not equal ({np.abs(dfm[col], dfp[col][: dfm.shape[0]]).max()})"
     dfp = slipmap_to_dataframe(sp, clusters=range(6, 7), losses=True)
     for col in dfp.columns:
         if col[:3] == "LT_":

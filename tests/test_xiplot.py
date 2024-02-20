@@ -7,6 +7,7 @@ import pandas as pd
 from slisemap import Slipmap, Slisemap
 from xiplot.plugin import APlot, AReadPlugin
 
+from slisemap_interactive.app import BackgroundApp
 from slisemap_interactive.plots import JitterSlider
 from slisemap_interactive.xiplot import (
     LabelledControls,
@@ -125,8 +126,11 @@ def test_plots():
         SlisemapModelBarPlot,
         SlisemapModelMatrixPlot,
     ]
+    app = BackgroundApp()
     for plot in plots:
         plot.create_layout(0, pd.DataFrame(), None, {})
+        plot.register_callbacks(app, lambda *_: None, lambda *_: None)
+        plot.name()
 
 
 def test_labelled_controls():
