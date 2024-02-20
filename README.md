@@ -23,9 +23,11 @@ To use the plugin, just install the package in the same Python environment as [Ï
 
 ## Installation
 
-To install __slisemap_interactive__ without manually downloading the repository run:
+To install __slisemap_interactive__ run one of the following commands:
 
 ```bash
+pip install slisemap_interactive
+pip install slisemap_interactive[xiplot]
 pip install git+https://github.com/edahelsinki/slisemap_interactive
 ```
 
