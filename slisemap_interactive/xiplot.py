@@ -1,7 +1,6 @@
-"""
-    Hooks for connecting to xiplot (using entry points in 'pyproject.toml').
-"""
-from typing import Any, Callable, Dict, List
+"""Hooks for connecting to xiplot (using entry points in 'pyproject.toml')."""
+
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from dash import ALL, MATCH, Input, Output, State, dcc, html
@@ -19,6 +18,7 @@ from xiplot.plugin import (
 from slisemap_interactive.load import (
     DEFAULT_MAX_L,
     DEFAULT_MAX_N,
+    slipmap_to_dataframe,
     slisemap_to_dataframe,
 )
 from slisemap_interactive.plots import (
@@ -41,16 +41,18 @@ from slisemap_interactive.plots import (
 
 
 class LabelledControls(FlexRow):
+    """FlexRow wrapper that adds a labels to controls."""
+
     def __init__(
         self,
         kwargs: Dict[str, Any] = {},
         **controls: Any,
-    ):
-        """Wrap controls in a `FlexRow` with labels on top
+    ) -> None:
+        """Wrap controls in a `FlexRow` with labels on top.
 
         Args:
-            **controls: `{label: control}`.
             kwargs: Additional key word arguments forwarded to `FlexRow`
+            **controls: `{label: control}`.
         """
         children = [
             html.Div(
@@ -64,7 +66,7 @@ class LabelledControls(FlexRow):
         super().__init__(*children, **kwargs)
 
 
-def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
+def load_slisemap() -> Tuple[Callable[[object], pd.DataFrame], str]:
     """Xiplot plugin for reading Slisemap files.
 
     Returns:
@@ -73,27 +75,58 @@ def plugin_load() -> Dict[str, Callable[[Any], pd.DataFrame]]:
     """
     # TODO Some columns should probably be hidden from the normal plots
 
-    def load(data, max_n: int = DEFAULT_MAX_N, max_l: int = DEFAULT_MAX_L):
-        return slisemap_to_dataframe(data, max_n=max_n, index=False, losses=max_l)
+    def load(
+        data: object,
+        max_n: int = DEFAULT_MAX_N,
+        max_l: int = DEFAULT_MAX_L,
+        **kwargs: Any,
+    ) -> pd.DataFrame:
+        """Load the Slisemap."""
+        return slisemap_to_dataframe(
+            data, max_n=max_n, index=False, losses=max_l, **kwargs
+        )
 
     return load, ".sm"
 
 
+def load_slipmap() -> Tuple[Callable[[object], pd.DataFrame], str]:
+    """Xiplot plugin for reading Slipmap files.
+
+    Returns:
+        parser: Function for parsing a Slipmap file to a dataframe.
+        extension: File extension.
+    """
+    # TODO Some columns should probably be hidden from the normal plots
+
+    def load(data: object, max_n: int = DEFAULT_MAX_N, **kwargs: Any) -> pd.DataFrame:
+        """Load the Slipmap."""
+        return slipmap_to_dataframe(data, max_n=max_n, index=False, **kwargs)
+
+    return load, ".sp"
+
+
 class SlisemapEmbeddingPlot(APlot):
+    """Embedding plot for Slisemap."""
+
     @classmethod
     def name(cls) -> str:
+        """Plot name."""
         return "Slisemap embedding plot"
 
     @classmethod
     def help(cls) -> str:
+        """Help string."""
         return (
             "Plot the embedding of a Slisemap object\n\n"
             + 'Hover over a point when the color is based on "Local loss" to see alternative embeddings for that point.'
         )
 
     @classmethod
-    def register_callbacks(cls, app, df_from_store, df_to_store):
-        PdfButton.register_callback(app, cls.get_id(None))
+    def register_callbacks(
+        cls, app: object, df_from_store: Callable, df_to_store: Callable
+    ) -> None:
+        """Register callbacks."""
+        PdfButton.register_callback(app, cls.name(), cls.get_id(None))
 
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
@@ -106,7 +139,7 @@ class SlisemapEmbeddingPlot(APlot):
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, variable, cluster, contours, jitter, hover, click, template):
+        def callback(df, variable, cluster, contours, jitter, hover, click, template):  # noqa: ANN001, ANN202
             df = df_from_store(df)
             if cluster in df.columns:
                 variable = cluster
@@ -136,7 +169,7 @@ class SlisemapEmbeddingPlot(APlot):
             Input(cls.get_id(ALL), "hoverData"),
             prevent_initial_call=True,
         )
-        def hover_callback(inputs):
+        def hover_callback(inputs: Any) -> Optional[int]:
             return first_not_none(inputs, EmbeddingPlot.get_hover_index)
 
         @app.callback(
@@ -145,7 +178,7 @@ class SlisemapEmbeddingPlot(APlot):
             State(ID_CLICKED, "data"),
             prevent_initial_call=True,
         )
-        def click_callback(inputs, old):
+        def click_callback(inputs, old) -> Optional[int]:  # noqa: ANN001
             new = first_not_none(inputs, EmbeddingPlot.get_hover_index)
             if new != old:
                 return new
@@ -154,27 +187,30 @@ class SlisemapEmbeddingPlot(APlot):
         PlotData.register_callback(
             cls.name(),
             app,
-            dict(
-                variable=Input(cls.get_id(MATCH, "variable"), "value"),
-                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
-                jitter=Input(cls.get_id(MATCH, "jitter"), "value"),
-            ),
+            {
+                "variable": Input(cls.get_id(MATCH, "variable"), "value"),
+                "cluster": Input(cls.get_id(MATCH, "cluster"), "value"),
+                "jitter": Input(cls.get_id(MATCH, "jitter"), "value"),
+            },
         )
 
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
+    def create_layout(
+        cls, index: object, df: pd.DataFrame, columns: Any, config: Dict[str, Any] = {}
+    ) -> List[object]:
+        """Create plot layout."""
         return [
             dcc.Graph(id=cls.get_id(index), clear_on_unhover=True),
             LabelledControls(
                 Variable=VariableDropdown(
                     df,
                     id=cls.get_id(index, "variable"),
-                    value=config.get("variable", None),
+                    value=config.get("variable"),
                 ),
                 Clusters=ClusterDropdown(
                     df,
                     id=cls.get_id(index, "cluster"),
-                    value=config.get("cluster", None),
+                    value=config.get("cluster"),
                 ),
                 Density=ContourCheckbox(
                     id=cls.get_id(index, "contours"),
@@ -192,12 +228,16 @@ class SlisemapEmbeddingPlot(APlot):
 
 
 class SlisemapModelBarPlot(APlot):
+    """Bar plot for Slisemap models."""
+
     @classmethod
     def name(cls) -> str:
+        """Plot name."""
         return "Slisemap barplot for local models"
 
     @classmethod
     def help(cls) -> str:
+        """Help string."""
         return (
             "Local models from a Slisemap object in a bar plot\n\n"
             + "The coefficients from the local models are plotted in a bar plot. "
@@ -206,8 +246,11 @@ class SlisemapModelBarPlot(APlot):
         )
 
     @classmethod
-    def register_callbacks(cls, app, df_from_store, df_to_store):
-        PdfButton.register_callback(app, cls.get_id(None))
+    def register_callbacks(
+        cls, app: object, df_from_store: Callable, df_to_store: Callable
+    ) -> None:
+        """Register callbacks."""
+        PdfButton.register_callback(app, cls.name(), cls.get_id(None))
 
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
@@ -218,7 +261,7 @@ class SlisemapModelBarPlot(APlot):
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, clusters, grouping, hover, click, template):
+        def callback(df, clusters, grouping, hover, click, template):  # noqa: ANN001, ANN202
             df = df_from_store(df)
             bs = [c for c in df.columns if c[:2] == "B_"]
             if len(bs) == 0:
@@ -240,51 +283,61 @@ class SlisemapModelBarPlot(APlot):
             Input(cls.get_id(MATCH, "cluster"), "value"),
             prevent_initial_call=False,
         )
-        def callback_disabled(cluster):
+        def callback_disabled(cluster: Optional[str]) -> bool:
             return cluster is None
 
         PlotData.register_callback(
             cls.name(),
             app,
-            dict(
-                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
-                grouping=Input(cls.get_id(MATCH, "grouping"), "value"),
-            ),
+            {
+                "cluster": Input(cls.get_id(MATCH, "cluster"), "value"),
+                "grouping": Input(cls.get_id(MATCH, "grouping"), "value"),
+            },
         )
 
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
+    def create_layout(
+        cls, index: object, df: pd.DataFrame, columns: Any, config: Dict[str, Any] = {}
+    ) -> List[object]:
+        """Create plot layout."""
         return [
             dcc.Graph(cls.get_id(index)),
             LabelledControls(
                 Clusters=ClusterDropdown(
                     df,
                     id=cls.get_id(index, "cluster"),
-                    value=config.get("cluster", None),
+                    value=config.get("cluster"),
                 ),
                 Grouping=BarGroupingDropdown(
                     id=cls.get_id(index, "grouping"),
-                    value=config.get("grouping", None),
+                    value=config.get("grouping"),
                 ),
             ),
         ]
 
 
 class SlisemapModelMatrixPlot(APlot):
+    """Heatmap for Slisemap local models."""
+
     @classmethod
     def name(cls) -> str:
+        """Plot name."""
         return "Slisemap matrixplot for local models"
 
     @classmethod
     def help(cls) -> str:
+        """Help string."""
         return (
             "Local models from a Slisemap object in a matrix plot\n\n"
             + "Hover over a column to see information about that point in other plots."
         )
 
     @classmethod
-    def register_callbacks(cls, app, df_from_store, df_to_store):
-        PdfButton.register_callback(app, cls.get_id(None))
+    def register_callbacks(
+        cls, app: object, df_from_store: Callable, df_to_store: Callable
+    ) -> None:
+        """Register callbacks."""
+        PdfButton.register_callback(app, cls.name(), cls.get_id(None))
 
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
@@ -293,7 +346,7 @@ class SlisemapModelMatrixPlot(APlot):
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, hover, click, template):
+        def callback(df, hover, click, template):  # noqa: ANN001, ANN202
             df = df_from_store(df)
             try:
                 zs0 = next(filter(lambda c: c[:2] == "Z_", df.columns))
@@ -313,7 +366,7 @@ class SlisemapModelMatrixPlot(APlot):
             Input(cls.get_id(ALL), "hoverData"),
             prevent_initial_call=True,
         )
-        def hover_callback(inputs):
+        def hover_callback(inputs: Any) -> Optional[int]:
             return first_not_none(inputs, ModelMatrixPlot.get_hover_index)
 
         @app.callback(
@@ -322,32 +375,42 @@ class SlisemapModelMatrixPlot(APlot):
             State(ID_CLICKED, "data"),
             prevent_initial_call=True,
         )
-        def click_callback(inputs, old):
+        def click_callback(inputs: Any, old: Any) -> Optional[int]:
             new = first_not_none(inputs, ModelMatrixPlot.get_hover_index)
             if new != old:
                 return new
             return None
 
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()) -> List[Any]:
+    def create_layout(
+        cls, index: object, df: pd.DataFrame, columns: Any, config: Dict[str, Any] = {}
+    ) -> List[object]:
+        """Create plot layout."""
         return [dcc.Graph(id=cls.get_id(index), clear_on_unhover=True)]
 
 
 class SlisemapDensityPlot(APlot):
+    """Density plot for Slisemap."""
+
     @classmethod
     def name(cls) -> str:
+        """Plot name."""
         return "Slisemap density plot"
 
     # @classmethod
     # def help(cls) -> str:
+    #     """Help string."""
     #     return (
     #         "Density plot for Slisemap objects\n\n"
     #         + "Use clustering to easily compare the distribution of the values between different clusters."
     #     )
 
     @classmethod
-    def register_callbacks(cls, app, df_from_store, df_to_store):
-        PdfButton.register_callback(app, cls.get_id(None))
+    def register_callbacks(
+        cls, app: object, df_from_store: Callable, df_to_store: Callable
+    ) -> None:
+        """Register callbacks."""
+        PdfButton.register_callback(app, cls.name(), cls.get_id(None))
 
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
@@ -358,7 +421,7 @@ class SlisemapDensityPlot(APlot):
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, variable, cluster, hover, click, template):
+        def callback(df, variable, cluster, hover, click, template):  # noqa: ANN001, ANN202
             df = df_from_store(df)
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
@@ -376,43 +439,53 @@ class SlisemapDensityPlot(APlot):
         PlotData.register_callback(
             cls.name(),
             app,
-            dict(
-                variable=Input(cls.get_id(MATCH, "variable"), "value"),
-                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
-            ),
+            {
+                "variable": Input(cls.get_id(MATCH, "variable"), "value"),
+                "cluster": Input(cls.get_id(MATCH, "cluster"), "value"),
+            },
         )
 
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()):
+    def create_layout(
+        cls, index: object, df: pd.DataFrame, columns: Any, config: Dict[str, Any] = {}
+    ) -> List[object]:
+        """Create plot layout."""
         return [
             dcc.Graph(cls.get_id(index)),
             LabelledControls(
                 Variable=VariableDropdown(
                     df,
                     id=cls.get_id(index, "variable"),
-                    value=config.get("variable", None),
+                    value=config.get("variable"),
                 ),
                 Clusters=ClusterDropdown(
                     df,
                     id=cls.get_id(index, "cluster"),
-                    value=config.get("cluster", None),
+                    value=config.get("cluster"),
                 ),
             ),
         ]
 
 
 class SlisemapHistogramPlot(APlot):
+    """Histogram plot for Slisemap."""
+
     @classmethod
     def name(cls) -> str:
+        """Plot name."""
         return "Slisemap histogram plot"
 
     # @classmethod
     # def help(cls) -> str:
+    #     """Help string."""
     #     return "Histogram for Slisemap objects"
 
     @classmethod
-    def register_callbacks(cls, app, df_from_store, df_to_store):
-        PdfButton.register_callback(app, cls.get_id(None))
+    def register_callbacks(
+        cls, app: object, df_from_store: Callable, df_to_store: Callable
+    ) -> None:
+        """Register callbacks."""
+        PdfButton.register_callback(app, cls.name(), cls.get_id(None))
 
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
@@ -423,7 +496,7 @@ class SlisemapHistogramPlot(APlot):
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, variable, cluster, hover, click, template):
+        def callback(df, variable, cluster, hover, click, template):  # noqa: ANN001, ANN202
             df = df_from_store(df)
             if variable not in df.columns:
                 return placeholder_figure(f"{variable} not found")
@@ -442,38 +515,48 @@ class SlisemapHistogramPlot(APlot):
         PlotData.register_callback(
             cls.name(),
             app,
-            dict(
-                variable=Input(cls.get_id(MATCH, "variable"), "value"),
-                cluster=Input(cls.get_id(MATCH, "cluster"), "value"),
-            ),
+            {
+                "variable": Input(cls.get_id(MATCH, "variable"), "value"),
+                "cluster": Input(cls.get_id(MATCH, "cluster"), "value"),
+            },
         )
 
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()):
+    def create_layout(
+        cls, index: object, df: pd.DataFrame, columns: Any, config: Dict[str, Any] = {}
+    ) -> List[object]:
+        """Create plot layout."""
         return [
             dcc.Graph(cls.get_id(index)),
             LabelledControls(
                 Variable=VariableDropdown(
                     df,
                     id=cls.get_id(index, "variable"),
-                    value=config.get("variable", None),
+                    value=config.get("variable"),
                 ),
                 Clusters=ClusterDropdown(
                     df,
                     id=cls.get_id(index, "cluster"),
-                    value=config.get("cluster", None),
+                    value=config.get("cluster"),
                 ),
             ),
         ]
 
 
 class SlisemapLinearTermsPlot(APlot):
+    """Linear terms plot for Slisemap.
+
+    This plot assumes that the variables have not been unscaled and that the coefficients are linear.
+    """
+
     @classmethod
     def name(cls) -> str:
+        """Plot name."""
         return "Slisemap linear terms plot"
 
     @classmethod
     def help(cls) -> str:
+        """Help string."""
         return (
             "Linear terms plot for Slisemap objects\n\n"
             + 'Plot the "terms" of the linear models (variables times coefficients).'
@@ -482,8 +565,11 @@ class SlisemapLinearTermsPlot(APlot):
         )
 
     @classmethod
-    def register_callbacks(cls, app, df_from_store, df_to_store):
-        PdfButton.register_callback(app, cls.get_id(None))
+    def register_callbacks(
+        cls, app: object, df_from_store: Callable, df_to_store: Callable
+    ) -> None:
+        """Register callbacks."""
+        PdfButton.register_callback(app, cls.name(), cls.get_id(None))
 
         @app.callback(
             Output(cls.get_id(MATCH), "figure"),
@@ -493,7 +579,7 @@ class SlisemapLinearTermsPlot(APlot):
             State(ID_CLICKED, "data"),
             Input(ID_PLOTLY_TEMPLATE, "data"),
         )
-        def callback(df, pred, hover, click, template):
+        def callback(df, pred, hover, click, template):  # noqa: ANN001, ANN202
             df = df_from_store(df)
             if pred is None:
                 return placeholder_figure("Could not find prediction")
@@ -510,20 +596,21 @@ class SlisemapLinearTermsPlot(APlot):
             )
 
         PlotData.register_callback(
-            cls.name(), app, dict(pred=Input(cls.get_id(MATCH, "pred"), "value"))
+            cls.name(), app, {"pred": Input(cls.get_id(MATCH, "pred"), "value")}
         )
 
     @classmethod
-    def create_layout(cls, index, df, columns, config=dict()):
+    def create_layout(
+        cls, index: object, df: pd.DataFrame, columns: Any, config: Dict[str, Any] = {}
+    ) -> List[object]:
+        """Create plot layout."""
         return [
             dcc.Graph(
                 cls.get_id(index), figure=placeholder_figure("Select an item to show")
             ),
             LabelledControls(
                 Prediction=PredictionDropdown(
-                    df,
-                    id=cls.get_id(index, "pred"),
-                    value=config.get("pred", None),
+                    df, id=cls.get_id(index, "pred"), value=config.get("pred")
                 )
             ),
         ]

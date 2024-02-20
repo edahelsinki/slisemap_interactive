@@ -1,19 +1,38 @@
-import pytest
+import numpy as np
 import pandas as pd
-from slisemap_interactive.plots import *
+import pytest
+
+from slisemap_interactive.load import PROTOTYPE_COLUMN
+from slisemap_interactive.plots import (
+    BarGroupingDropdown,
+    ClusterDropdown,
+    ContourCheckbox,
+    DataCache,
+    DensityTypeDropdown,
+    DistributionPlot,
+    EmbeddingPlot,
+    HoverData,
+    JitterSlider,
+    ModelBarPlot,
+    ModelMatrixPlot,
+    VariableDropdown,
+    first_not_none,
+    nested_get,
+)
 
 
 @pytest.fixture(scope="session")
 def dataframe():
     df = pd.DataFrame()
-    df["cls"] = pd.Categorical([1, 2, 3, 1, 2, 3])
-    df["Local loss"] = [0.1, 0.2, 0.3, 0.3, 0.2, 0.1]
-    df["L_0"] = df["L_1"] = df["L_2"] = [0.3, 0.2, 0.1, 0.1, 0.2, 0.3]
-    df["B_0"] = df["B_1"] = df["B_2"] = [0.3, 0.2, 0.1, 0.3, 0.2, 0.1]
-    df["X_0"] = df["X_1"] = [1, 2, 3, 1, 2, 3]
-    df["Y_0"] = [4, 6, -2, -4, 4, 0]
-    df["Z_0"] = [3, 2, 3, 3, 1, 3]
-    df["Z_1"] = [1, 2, 3, 3, 1, 2]
+    df["cls"] = pd.Categorical([1, 2, 3, 1, 2, 3, np.nan])
+    df["Local loss"] = [0.1, 0.2, 0.3, 0.3, 0.2, 0.1, np.nan]
+    df["L_0"] = df["L_1"] = df["L_2"] = [0.3, 0.2, 0.1, 0.1, 0.2, 0.3, np.nan]
+    df["B_0"] = df["B_1"] = df["B_2"] = [0.3, 0.2, 0.1, 0.3, 0.2, 0.1, 0.0]
+    df["X_0"] = df["X_1"] = [1, 2, 3, 1, 2, 3, np.nan]
+    df["Y_0"] = [4, 6, -2, -4, 4, 0, np.nan]
+    df["Z_0"] = [3, 2, 3, 3, 1, 3, 0]
+    df["Z_1"] = [1, 2, 3, 3, 1, 2, 0]
+    df[PROTOTYPE_COLUMN] = [False] * 6 + [True]
     return df
 
 

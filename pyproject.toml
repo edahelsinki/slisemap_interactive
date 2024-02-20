@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slisemap_interactive"
-version = "0.5.0"
+version = "0.6.0"
 description = "Interactive plots for Slisemap using Dash"
 readme = "README.md"
 license = { text = "MIT" }
@@ -29,13 +29,14 @@ dependencies = [
 
 [project.optional-dependencies]
 xiplot = ["xiplot"]
-dev = ["pytest", "black[jupyter]", "pylint", "jupyter", "IPython"]
+dev = ["pytest", "pytest-cov", "black[jupyter]", "ruff", "jupyter", "IPython"]
 
 [project.urls]
 github = "https://github.com/edahelsinki/slisemap_interactive"
 
 [project.entry-points."xiplot.plugin.read"]
-xiplot_plugin_load = "slisemap_interactive.xiplot:plugin_load"
+xiplot_plugin_load_slisemap = "slisemap_interactive.xiplot:load_slisemap"
+xiplot_plugin_load_slipmap = "slisemap_interactive.xiplot:load_slipmap"
 
 [project.entry-points."xiplot.plugin.plot"]
 xiplot_plugin_embeddingplot = "slisemap_interactive.xiplot:SlisemapEmbeddingPlot"
@@ -50,3 +51,47 @@ slisemap_interactive = "slisemap_interactive.app:cli"
 
 [tool.setuptools]
 packages = ["slisemap_interactive"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["print", "ImportError"]
+
+[tool.ruff.lint]
+select = [
+    "I",
+    "E",
+    "F",
+    "B",
+    "C4",
+    "W",
+    "D",
+    "UP",
+    "ANN",
+    "SIM",
+    "RUF",
+    "S",
+    "N",
+]
+ignore = [
+    "E501",
+    "B006",
+    "D105",
+    "D203",
+    "D204",
+    "D406",
+    "D213",
+    "D407",
+    "D413",
+    "ANN101",
+    "ANN102",
+    "ANN401",
+    "S101",
+    "N802",
+    "N803",
+    "N806",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ANN"]

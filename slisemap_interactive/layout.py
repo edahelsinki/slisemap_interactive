@@ -1,27 +1,25 @@
-"""
-    Create the layout and register callbacks
-"""
+"""Create the layout and register callbacks."""
 
-from dash import Dash, html
 import pandas as pd
+from dash import Dash, html
 
 from slisemap_interactive.plots import (
     BarGroupingDropdown,
     ClusterDropdown,
     ContourCheckbox,
-    EmbeddingPlot,
+    DataCache,
     DensityTypeDropdown,
+    DistributionPlot,
+    EmbeddingPlot,
+    HoverData,
     JitterSlider,
     ModelBarPlot,
     ModelMatrixPlot,
     VariableDropdown,
-    HoverData,
-    DistributionPlot,
-    DataCache,
 )
 
 
-def register_callbacks(app: Dash, data: DataCache):
+def register_callbacks(app: Dash, data: DataCache) -> None:
     """Register callbacks for updating the plots.
 
     Args:
@@ -52,7 +50,6 @@ def page_with_all_plots(df: pd.DataFrame, data_key: int) -> html.Div:
         "alignItems": "center",
         "justifyContent": "right",
         "flexWrap": "wrap",
-        "gap": "0px",
         "padding": "0.4rem",
         "background": "#FDF3FF",
         "borderRadius": "4px",

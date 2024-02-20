@@ -1,6 +1,5 @@
-"""
-    Simple standalone Dash app.
-"""
+"""Simple standalone Dash app."""
+
 import argparse
 import os
 from os import PathLike
@@ -17,7 +16,7 @@ except ImportError:
     # But jupyter_dash is not compatible with pyodide.
     JupyterDash = Dash
 
-from slisemap_interactive.layout import register_callbacks, page_with_all_plots
+from slisemap_interactive.layout import page_with_all_plots, register_callbacks
 from slisemap_interactive.load import (
     DEFAULT_MAX_L,
     DEFAULT_MAX_N,
@@ -28,9 +27,9 @@ from slisemap_interactive.load import (
 from slisemap_interactive.plots import DataCache
 
 
-def cli():
-    """
-    Plot a slisemap object interactively.
+def cli() -> None:
+    """Plot a slisemap object interactively.
+
     This function acts like a command line program.
     Arguments are parsed from `sys.argv` using `argparse.ArgumentParser()`.
     """
@@ -70,7 +69,7 @@ def cli():
     args = parser.parse_args()
     path = args.PATH
     if os.path.isdir(path):
-        for path in [f for f in os.listdir(path) if f.endswith(".sm")]:
+        for path in [f for f in os.listdir(path) if f.endswith(".sm")]:  # noqa: B020
             print("Using:", path)
             break
     if args.export:
@@ -97,8 +96,9 @@ def plot(
     mode: Literal[None, "inline", "external", "jupyterlab"] = None,
     appargs: Dict[str, Any] = {},
     **runargs: Any,
-):
+) -> None:
     """Plot a Slisemap object interactively.
+
     This function is designed to be called from a jupyter notebook or an interactive Python shell.
     This function automatically starts a server in the background.
 
@@ -115,7 +115,7 @@ def plot(
     app.set_data(slisemap, max_n).display(width, height, mode)
 
 
-def shutdown():
+def shutdown() -> None:
     """Shutdown the current background server for interactive Slisemap plots.
 
     This is a shortcut for `BackgroundApp.get_app().shutdown()`.
@@ -131,7 +131,8 @@ def shutdown():
 class ForegroundApp(Dash):
     """Create a blocking Dash app for interactive visualisations of a Slisemap object."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Create a blocking Dash app."""
         super().__init__(*args, title="Interactive Slisemap", **kwargs)
         self.data_cache = DataCache()
         register_callbacks(self, self.data_cache)
@@ -142,6 +143,7 @@ class ForegroundApp(Dash):
         max_n: int = DEFAULT_MAX_N,
     ) -> "ForegroundApp":
         """Set which data the app should show new connections.
+
         Old data is cached so that old connections continue working.
         For existing connections, refresh the page to get the latest data.
 
@@ -164,7 +166,7 @@ class BackgroundApp(JupyterDash):
     # Store current app for reuse as a singleton
     __app = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Create the `BackgroundApp` server, see `dash.Dash()` for arguments."""
         super().__init__(*args, title="Interactive Slisemap", **kwargs)
         self._display_url = None
@@ -179,6 +181,7 @@ class BackgroundApp(JupyterDash):
         max_n: int = DEFAULT_MAX_N,
     ) -> "BackgroundApp":
         """Set which data the app should show new connections.
+
         Old data is cached so that old connections continue working.
         For existing connections, refresh the page to get the latest data.
 
@@ -216,23 +219,24 @@ class BackgroundApp(JupyterDash):
                 app.run(**runargs)
         return app
 
-    def run(self, *args, **kwargs):
+    def run(self, *args: Any, **kwargs: Any) -> None:
         """Start the server, see `dash.JupyterDash().run_server()` for arguments."""
         if BackgroundApp.__app is not None:
             warn(
                 "A `BackgroundApp` already exists. Use `BackgroundApp.get_app(...)` to reuse it.",
                 Warning,
+                stacklevel=1,
             )
         super().run_server(*args, **kwargs)
         BackgroundApp.__app = self
 
     run_server = run
 
-    def shutdown(self):
-        """Shutdown the server"""
+    def shutdown(self) -> None:
+        """Shutdown the server."""
         old_server = [
             (host, port)
-            for host, port in self._server_threads.keys()
+            for host, port in self._server_threads
             if port == self._display_port and host in self._display_url
         ]
         for key in old_server:
@@ -245,13 +249,13 @@ class BackgroundApp(JupyterDash):
         if BackgroundApp.__app == self:
             BackgroundApp.__app = None
 
-    def _display_in_colab(self, url, port, mode, width, height):
+    def _display_in_colab(self, url: str, port: int, *_: Any, **__: Any) -> None:
         # Catch parameters to the display function for reuse later (see `BackgroundApp().display()`)
         self._display_url = url
         self._display_port = port
         self._display_call = super()._display_in_colab
 
-    def _display_in_jupyter(self, url, port, mode, width, height):
+    def _display_in_jupyter(self, url: str, port: int, *_: Any, **__: Any) -> None:
         # Catch parameters to the display function for reuse later (see `BackgroundApp().display()`)
         self._display_url = url
         self._display_port = port
@@ -262,7 +266,7 @@ class BackgroundApp(JupyterDash):
         width: Union[str, int] = "100%",
         height: Union[str, int] = 1000,
         mode: Literal[None, "inline", "external", "jupyterlab"] = None,
-    ):
+    ) -> None:
         """Display the plots.
 
         Args:
@@ -274,7 +278,7 @@ class BackgroundApp(JupyterDash):
             Exception: The server must be started (through `BackgroundApp().run()`) before the plots are displayed.
         """
         if self._display_call is None:
-            raise Exception(
+            raise RuntimeError(
                 "You need to run `BackgroundApp().run()` before displaying results"
             )
         if mode is None:

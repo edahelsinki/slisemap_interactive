@@ -1,25 +1,27 @@
-"""
-    Slisemap - Interactive: A Dash app for interactively visualising Slisemap objects
-    =================================================================================
+"""Slisemap - Interactive: A Dash app for interactively visualising Slisemap objects.
+=================================================================================
 
-    Use the `plot` function for non-blocking interactive plots in notebooks and interactive interpreters.
-    In (non-Python) terminals you can call `slisemap_interactive` to start a standalone application.
-    Finally, this package also integrates into χiplot as a plugin.
+Use the `plot` function for non-blocking interactive plots in notebooks and interactive interpreters.
+In (non-Python) terminals you can call `slisemap_interactive` to start a standalone application.
+Finally, this package also integrates into χiplot as a plugin.
 
-    Relevant links:
-    ---------------
+Relevant links:
+---------------
 
-    - [GitHub repository](https://github.com/edahelsinki/slisemap_interactive)
-    - [Slisemap](https://github.com/edahelsinki/slisemap)
-    - [χiplot](https://github.com/edahelsinki/xiplot)
-    - [Dash](https://dash.plotly.com/)
-"""
+- [GitHub repository](https://github.com/edahelsinki/slisemap_interactive)
+- [Slisemap](https://github.com/edahelsinki/slisemap)
+- [χiplot](https://github.com/edahelsinki/xiplot)
+- [Dash](https://dash.plotly.com/)
+"""  # noqa: D205
 
-from slisemap_interactive.app import plot, shutdown, BackgroundApp, ForegroundApp
-from slisemap_interactive.load import load, slisemap_to_dataframe
-
-
-def __version__():
-    from importlib.metadata import version
-
-    return version("slisemap_interactive")
+from slisemap_interactive.app import (  # noqa: F401
+    BackgroundApp,
+    ForegroundApp,
+    plot,
+    shutdown,
+)
+from slisemap_interactive.load import (  # noqa: F401
+    load,
+    slipmap_to_dataframe,
+    slisemap_to_dataframe,
+)
