@@ -161,16 +161,14 @@ def slisemap_to_dataframe(
         del L, Ln
 
     if clusters is not None and len(clusters) > 0:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", FutureWarning)
-            clusters = {
-                f"Clusters {i}": pd.Series(
-                    sm.get_model_clusters(i, B=B, Z=Z)[0], dtype="category"
-                )
-                for i in clusters
-            }
-            dfs.append(pd.DataFrame(clusters))
-            del clusters
+        clusters = {
+            f"Clusters {i}": pd.Series(
+                sm.get_model_clusters(i, B=B, Z=Z)[0], dtype="category"
+            )
+            for i in clusters
+        }
+        dfs.append(pd.DataFrame(clusters))
+        del clusters
     del sm, Z, B
     gc.collect(1)
 
@@ -245,16 +243,14 @@ def slipmap_to_dataframe(
     del variables, targets, predictions, pred, local_loss
 
     if clusters is not None and len(clusters) > 0:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", FutureWarning)
-            clusters = {
-                f"Clusters {i}": pd.Series(
-                    sp.get_model_clusters(i, B=B, Z=Z[ss, :])[0], dtype="category"
-                )
-                for i in clusters
-            }
-            dfs.append(pd.DataFrame(clusters))
-            del clusters
+        clusters = {
+            f"Clusters {i}": pd.Series(
+                sp.get_model_clusters(i, B=B, Z=Z[ss, :])[0], dtype="category"
+            )
+            for i in clusters
+        }
+        dfs.append(pd.DataFrame(clusters))
+        del clusters
     del Z, B
 
     if losses:
