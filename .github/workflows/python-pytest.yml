@@ -41,8 +41,9 @@ jobs:
       - run: python -m pip install --upgrade pip build
       - name: Build package
         run: |
+          rm -f dist/*.whl
           python -m build
-          python -c "import os, glob; assert os.path.getsize(sorted(glob.glob('dist/slisemap-*.whl'))[-1]) > 10_000"
+          python -c "import os, glob; assert os.path.getsize(glob.glob('dist/*.whl')[-1]) > 10_000"
 
   lint:
     runs-on: ubuntu-latest

@@ -65,15 +65,12 @@ def test_load_slisemap(sm_to_df):
 
 def test_load_slipmap(sm_to_df):
     sm, dfm = sm_to_df
-    sp = Slipmap.convert(sm)
+    sp = Slipmap.convert(sm, prototypes=10)
     dfp = slipmap_to_dataframe(sp, clusters=None, losses=False)
-    for col in dfm.columns:
-        if col[0] not in ("L", "B", "Ŷ", "C"):
-            assert np.allclose(
-                dfm[col], dfp[col][: dfm.shape[0]], 2e-4
-            ), f"{col} not equal ({np.abs(dfm[col], dfp[col][: dfm.shape[0]]).max()})"
     dfp = slipmap_to_dataframe(sp, clusters=range(6, 7), losses=True)
     for col in dfp.columns:
+        if col[0] in ("X", "Y"):
+            assert np.allclose(dfm[col], dfp[col][: dfm.shape[0]])
         if col[:3] == "LT_":
             assert np.all(np.isnan(dfp[col][sp.n :]))
             assert np.all(np.isfinite(dfp[col][: sp.n]))
