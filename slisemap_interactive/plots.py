@@ -549,7 +549,7 @@ class EmbeddingPlot(dcc.Graph):
                     y=y,
                     color=variable,
                     title=f"Alternative locations for item: {df.get('item', df.index)[hover]}",
-                    opacity=np.isfinite(losses) * 0.8,
+                    opacity=np.isfinite(losses) * 0.8 + 0.05,
                     color_continuous_scale="Viridis_r",
                     labels={variable: "Local loss&nbsp;"},
                     custom_data=["index"],
@@ -587,7 +587,7 @@ class EmbeddingPlot(dcc.Graph):
                 line_color="grey",
                 line_width=1,
             )
-        if hover is None and df.get(PROTOTYPE_COLUMN) is not None:
+        if df.get(PROTOTYPE_COLUMN) is not None:
             trace = px.scatter(
                 df[df[PROTOTYPE_COLUMN]],
                 x=x,
@@ -601,7 +601,7 @@ class EmbeddingPlot(dcc.Graph):
                     "size": 8,
                     "symbol": "hexagon2",
                     "color": "rgba(0,0,0,0)",
-                    "line": {"width": 1, "color": "black"},
+                    "line": {"width": 1, "color": "grey"},
                 },
             )
             fig.add_traces(trace.data)
