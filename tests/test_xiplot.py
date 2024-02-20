@@ -88,14 +88,14 @@ def test_load():
     with BytesIO() as io:
         sm.save(io)
         io.seek(0)
-        sm2 = load_slisemap()[0](io)
-    assert sm2.shape == (10, 30)
-    sp = Slipmap.convert(sm)
+        sm2 = load_slisemap()[0](io, clusters=None)
+    assert sm2.shape == (10, 22)
+    sp = Slipmap.convert(sm, prototypes=10)
     with BytesIO() as io:
         sp.save(io)
         io.seek(0)
-        sp2 = load_slipmap()[0](io)
-    assert sp2.shape[0] == 10
+        sp2 = load_slipmap()[0](io, clusters=None)
+    assert sp2.shape == (20, 23)
 
 
 def test_plot_signature():

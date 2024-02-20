@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from slisemap_interactive.load import PROTOTYPE_COLUMN
 
+from slisemap_interactive.load import PROTOTYPE_COLUMN
 from slisemap_interactive.plots import (
     BarGroupingDropdown,
     ClusterDropdown,

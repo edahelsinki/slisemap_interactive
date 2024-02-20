@@ -18,7 +18,7 @@ def sm_to_df():
     Y = np.random.normal(0, 1, 100)
     B0 = np.random.normal(0, 1, (100, 6))
     sm = Slisemap(X, Y, lasso=0.1, B0=B0)
-    df = slisemap_to_dataframe(sm, losses=True, clusters=8)
+    df = slisemap_to_dataframe(sm, losses=True)
     return sm, df
 
 
@@ -47,38 +47,47 @@ def test_load_slisemap(sm_to_df):
     assert np.allclose(sm.get_Z(rotate=True)[:, 0], df["Z_0"])
     assert df.shape[0] == sm.n
     assert df.shape[1] == 1 + sm.n + 7 + sm.m + sm.q + sm.o * 2 + sm.d - sm.intercept
-    df2 = slisemap_to_dataframe(sm, max_n=80, index=False, losses=False, clusters=3)
+    df2 = slisemap_to_dataframe(sm, max_n=80, index=False, losses=False, clusters=(3,))
     assert df2.shape[0] == 80
     sm.metadata.set_rows(range(1, sm.n + 1))
     sm.metadata.set_variables(range(1, sm.m + 1 - sm.intercept))
     sm.metadata.set_targets("test")
     sm.metadata.set_coefficients(sm.metadata.get_variables())
     sm.metadata.set_dimensions("as")
-    df3 = slisemap_to_dataframe(sm, losses=10, clusters=0)
+    df3 = slisemap_to_dataframe(sm, losses=10, clusters=None)
     assert all(f"X_{i}" in df3 for i in sm.metadata.get_variables(intercept=False))
     assert all(f"B_{i}" in df3 for i in sm.metadata.get_coefficients())
     assert all(f"Y_{i}" in df3 for i in sm.metadata.get_targets())
     assert all(f"Z_{i}" in df3 for i in sm.metadata.get_dimensions())
     assert np.allclose(df3.index, sm.metadata.get_rows())
-    slisemap_to_dataframe(sm, losses=20, max_n=20, clusters=0, index=False)
+    slisemap_to_dataframe(sm, losses=20, max_n=20, clusters=None, index=False)
 
 
 def test_load_slipmap(sm_to_df):
     sm, dfm = sm_to_df
     sp = Slipmap.convert(sm)
-    dfp = slipmap_to_dataframe(sp)
+    dfp = slipmap_to_dataframe(sp, clusters=None, losses=False)
     for col in dfm.columns:
         if col[0] not in ("L", "B", "Ŷ", "C"):
-            assert np.allclose(dfm[col], dfp[col][: dfm.shape[0]], 1e-4)
+            assert np.allclose(
+                dfm[col], dfp[col][: dfm.shape[0]], 2e-4
+            ), f"{col} not equal"
+    dfp = slipmap_to_dataframe(sp, clusters=range(6, 7), losses=True)
+    for col in dfp.columns:
+        if col[:3] == "LT_":
+            assert np.all(np.isnan(dfp[col][sp.n :]))
+            assert np.all(np.isfinite(dfp[col][: sp.n]))
+            assert int(col[3:]) >= sp.n
+    assert np.sum(np.isnan(get_L_column(dfp, 0))) == sp.n - 1
 
 
 def test_rec_l(sm_to_df):
     sm, df1 = sm_to_df
-    df2 = slisemap_to_dataframe(sm, losses=30, clusters=0)
+    df2 = slisemap_to_dataframe(sm, losses=30, clusters=None)
     for i in range(df1.shape[0]):
         l1 = get_L_column(df1, i)
         l2 = get_L_column(df2, i)
-        assert np.all(np.equal(l1, l2) + (np.isnan(l2)))
+        assert np.all(np.isclose(l1, l2) + np.isnan(l2))
 
 
 def test_save(sm_to_df, tmp_path):

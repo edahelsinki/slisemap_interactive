@@ -76,10 +76,15 @@ def load_slisemap() -> Tuple[Callable[[object], pd.DataFrame], str]:
     # TODO Some columns should probably be hidden from the normal plots
 
     def load(
-        data: object, max_n: int = DEFAULT_MAX_N, max_l: int = DEFAULT_MAX_L
+        data: object,
+        max_n: int = DEFAULT_MAX_N,
+        max_l: int = DEFAULT_MAX_L,
+        **kwargs: Any,
     ) -> pd.DataFrame:
         """Load the Slisemap."""
-        return slisemap_to_dataframe(data, max_n=max_n, index=False, losses=max_l)
+        return slisemap_to_dataframe(
+            data, max_n=max_n, index=False, losses=max_l, **kwargs
+        )
 
     return load, ".sm"
 
@@ -93,9 +98,9 @@ def load_slipmap() -> Tuple[Callable[[object], pd.DataFrame], str]:
     """
     # TODO Some columns should probably be hidden from the normal plots
 
-    def load(data: object, max_n: int = DEFAULT_MAX_N) -> pd.DataFrame:
+    def load(data: object, max_n: int = DEFAULT_MAX_N, **kwargs: Any) -> pd.DataFrame:
         """Load the Slipmap."""
-        return slipmap_to_dataframe(data, max_n=max_n, index=False)
+        return slipmap_to_dataframe(data, max_n=max_n, index=False, **kwargs)
 
     return load, ".sp"
 
